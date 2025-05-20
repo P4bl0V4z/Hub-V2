@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3000"
+    depends_on:
+      - db
+      - redis
+  db:
+    build: ./database
+    ports:
+      - "5432:5432"
+  redis:
+    build: ./redis
+    ports:
+      - "6379:6379"

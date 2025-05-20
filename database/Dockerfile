@@ -1,0 +1,4 @@
+FROM postgres:16
+ENV POSTGRES_USER=hubuser
+ENV POSTGRES_PASSWORD=hubpass
+ENV POSTGRES_DB=hubdb
