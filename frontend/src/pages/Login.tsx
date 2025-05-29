@@ -1,45 +1,65 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, TextField, Typography, Divider } from '@mui/material';
-import axios from 'axios';
-import { GoogleLogin } from '@react-oauth/google';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+import { useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Card, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import LoginHeader from "@/components/auth/LoginHeader";
+import LoginForm from "@/components/auth/LoginForm";
+
+const Login = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const location = useLocation();
 
-  const handleLogin = async () => {
-    try {
-      await axios.post('/api/auth/login', { email, password }, { withCredentials: true });
-      navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al iniciar sesión');
-    }
-  };
+  // Check authentication status on mount
+  useEffect(() => {
+    // Get the 'logout' parameter from URL, if it exists
+    const params = new URLSearchParams(location.search);
+    const isLogout = params.get('logout') === 'true';
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
-    try {
-      await axios.post('/api/auth/google', { credential: credentialResponse.credential }, { withCredentials: true });
-      navigate('/');
-    } catch (err) {
-      setError('Error al iniciar sesión con Google');
+    // Only redirect if the user is authenticated AND not explicitly logging out
+    const isAuthenticated = localStorage.getItem("beloop_authenticated") === "true";
+    if (isAuthenticated && !isLogout) {
+      const userRole = localStorage.getItem("beloop_user_role") || "user";
+      if (userRole === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     }
+  }, [navigate, location]);
+
+  // Función para iniciar sesión directamente como administrador
+  const handleAdminAccess = () => {
+    localStorage.setItem("beloop_user_role", "admin");
+    localStorage.setItem("beloop_authenticated", "true");
+    
+    // @ts-ignore
+    if (window.beLoopLogin) window.beLoopLogin();
+    
+    toast({
+      title: "Acceso de administrador",
+      description: "Ingresando al panel de administración.",
+    });
+    
+    navigate("/admin");
   };
 
   return (
-    <Box sx={{ maxWidth: 400, mx: 'auto', mt: 8 }}>
-      <Typography variant="h5" gutterBottom>Iniciar Sesión</Typography>
-      {error && <Typography color="error">{error}</Typography>}
-      <TextField fullWidth margin="normal" label="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} />
-      <TextField fullWidth margin="normal" type="password" label="Contraseña" value={password} onChange={e => setPassword(e.target.value)} />
-      <Button variant="contained" fullWidth sx={{ mt: 2 }} onClick={handleLogin}>Ingresar</Button>
-      <Divider sx={{ my: 2 }}>O</Divider>
-      <GoogleLogin
-        onSuccess={handleGoogleSuccess}
-        onError={() => setError('Error con la autenticación de Google')}
-      />
-    </Box>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md space-y-8">
+        <LoginHeader />
+        
+        <Card className="border-none shadow-lg">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl">Acceso</CardTitle>
+            <CardDescription>Ingresa a tu cuenta para continuar</CardDescription>
+          </CardHeader>
+          <LoginForm onAdminAccess={handleAdminAccess} />
+        </Card>
+      </div>
+    </div>
   );
-}
+};
+
+export default Login;
