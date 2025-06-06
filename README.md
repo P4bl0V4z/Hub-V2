@@ -89,3 +89,60 @@ INSERT INTO roles (nombre, descripcion) VALUES
 ('sadmin', 'Superadministrador del sistema');
 
 
+<<<<<<< Updated upstream
+=======
+
+
+# Puesta en marcha del proyecto Hub-V2 con Docker Compose
+
+Este documento resume todos los pasos realizados para levantar correctamente un entorno con frontend (Vite + Nginx), backend (Node + TypeScript + Passport), PostgreSQL y Redis usando Docker.
+
+---
+
+## Estructura del proyecto
+HUB-V2-lovable-joaquin/
+├── backend/
+│ └── .env
+├── database/
+├── frontend/
+│ └── Dockerfile
+├── redis/
+├── docker-compose.yml
+└── README.md
+
+-----
+## Estructura General
+
+- Proyecto React + Vite (`frontend`) servido por Nginx
+- Backend en Node.js + TypeScript (`backend`)
+- PostgreSQL como base de datos
+- Redis como almacén temporal
+- Docker y Docker Compose para orquestar servicios
+- Google OAuth 2.0 para autenticación externa
+
+
+## Pasos Realizados
+
+1. **Levantamiento inicial del entorno**
+Corregí el `Dockerfile` del frontend para que copiara desde `/app/dist` en lugar de `/app/build` (porque Vite usa `dist`)
+cree el archivo `docker-compose.yml` con mapeos de puertos:
+  - Frontend: `localhost:3000`
+  - Backend: `localhost:3001`
+  - PostgreSQL: `localhost:5432`
+  - Redis: `localhost:6379`
+---
+
+2. **Configuración del backend**
+
+- Eliminé `"type": "module"` de `package.json` para evitar errores con `exports` en CommonJS
+- Corregí `tsconfig.json` con `"module": "CommonJS"`
+- Agregué `.env` en `backend/` con las siguientes variables:
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+DATABASE_URL=postgres://postgres:Hub.2025**@db:5432/beloophub2
+SESSION_SECRET= 
+
+
+>>>>>>> Stashed changes

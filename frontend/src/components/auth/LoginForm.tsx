@@ -124,6 +124,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
         <div className="space-y-4">
           <p className="text-xs text-center text-muted-foreground">o ingresar con</p>
           <div className="grid grid-cols-2 gap-4">
+<<<<<<< Updated upstream
             <Button 
               variant="outline" 
               className="w-full"
@@ -132,6 +133,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
               <BeLoopIcon name="gmail" size={16} className="mr-2" />
               Gmail
             </Button>
+=======
+            <a href="http://localhost:3001/auth/google" className="w-full">
+              <Button variant="outline" className="w-full">
+                <BeLoopIcon name="gmail" size={16} className="mr-2" />
+                  Gmail prueba
+              </Button>
+            </a>
+>>>>>>> Stashed changes
             <Button 
               variant="outline" 
               className="w-full"

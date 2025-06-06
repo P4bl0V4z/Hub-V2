@@ -1,7 +1,7 @@
 {
   "name": "Hub-v2-backend",
   "version": "1.0.0",
-  "type": "module",
+  
   "main": "src/index.ts",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
