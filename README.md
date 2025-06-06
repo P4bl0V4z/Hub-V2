@@ -76,6 +76,38 @@ CREATE TABLE roles_permisos (
 );
 
 -----------------------------------------------------------------------------------
+
+
+
+Guarda los reportes generados por empresa y módulo, organiza la trazabilidad de reportes oficiales o simulaciones.
+
+--Relación Muchos a uno con empresas, modulos, usuarios
+CREATE TABLE reportes (
+    id SERIAL PRIMARY KEY,
+    empresa_id INTEGER REFERENCES empresas(id) ON DELETE CASCADE,
+    modulo_id INTEGER REFERENCES modulos(id),
+    tipo TEXT NOT NULL, -- 'mensual', 'anual', 'simulacion'
+    periodo TEXT, -- '2025-05', '2024', etc.
+    archivo_url TEXT,
+    generado_por INTEGER REFERENCES usuarios(id),
+    generado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+Planes contratados por las empresas.
+
+CREATE TABLE planes (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL UNIQUE, -- Simple, PRO, Enterprise
+    descripcion TEXT
+); 
+
+Habilita funcionalidades por plan
+ALTER TABLE empresas ADD COLUMN plan_id INTEGER REFERENCES planes(id);
+
+------------------------------------------------------------------------------------
+
+
 PRECARGA DE DATOS
 
 Ej.:
@@ -89,8 +121,6 @@ INSERT INTO roles (nombre, descripcion) VALUES
 ('sadmin', 'Superadministrador del sistema');
 
 
-<<<<<<< Updated upstream
-=======
 
 
 # Puesta en marcha del proyecto Hub-V2 con Docker Compose
@@ -145,4 +175,3 @@ DATABASE_URL=postgres://postgres:Hub.2025**@db:5432/beloophub2
 SESSION_SECRET= 
 
 
->>>>>>> Stashed changes
