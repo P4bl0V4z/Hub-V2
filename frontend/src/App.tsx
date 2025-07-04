@@ -35,6 +35,9 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminActivity from "./pages/admin/AdminActivity";
+import Verify from "./pages/Verify";
+import HomePublic from "./pages/HomePublic";
+
 
 const App = () => {
   // Create a client instance inside the component
@@ -131,10 +134,11 @@ const App = () => {
                   (userRole === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/" replace />) 
                   : <Login />
               } />
-              
+              <Route path="/verificar" element={<Verify />} />
+
               {/* Protected Routes */}
               <Route path="/" element={
-                isAuthenticated ? <Index /> : <Navigate to="/login" replace />
+                isAuthenticated ? <Index /> : <HomePublic />
               } />
               <Route path="/reports" element={
                 isAuthenticated ? <Reports /> : <Navigate to="/login" replace />

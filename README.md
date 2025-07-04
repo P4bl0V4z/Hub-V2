@@ -12,6 +12,11 @@ CREATE TABLE usuarios (
     nombre TEXT, -- opcional
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+modificaciones posteriores
+ALTER TABLE usuarios ADD COLUMN activo BOOLEAN DEFAULT FALSE; // estado del usuario
+ALTER TABLE usuarios ADD COLUMN token_verificacion TEXT; // token que permite comprobar si el usuario accedio al link desde su correo
+ALTER TABLE usuarios ADD COLUMN verificado_en TIMESTAMP; // tiempo de validez del token
+
 
 -- Tabla de empresas (clientes)
 CREATE TABLE empresas (

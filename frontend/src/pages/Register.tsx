@@ -1,32 +1,18 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, TextField, Typography } from '@mui/material';
-import axios from 'axios';
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import RegisterForm from "@/components/auth/RegisterForm";
 
-export default function Register() {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
+const Register = () => (
+  <div className="flex min-h-screen items-center justify-center p-4 bg-background">
+    <div className="w-full max-w-md space-y-6">
+      <Card className="border-none shadow-lg">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-xl">Crear cuenta</CardTitle>
+          <CardDescription>Regístrate para comenzar</CardDescription>
+        </CardHeader>
+        <RegisterForm />
+      </Card>
+    </div>
+  </div>
+);
 
-  const handleRegister = async () => {
-    try {
-      await axios.post('/api/auth/register', { email, name, password }, { withCredentials: true });
-      navigate('/login');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al registrarse');
-    }
-  };
-
-  return (
-    <Box sx={{ maxWidth: 400, mx: 'auto', mt: 8 }}>
-      <Typography variant="h5" gutterBottom>Registrarse</Typography>
-      {error && <Typography color="error">{error}</Typography>}
-      <TextField fullWidth margin="normal" label="Nombre completo" value={name} onChange={e => setName(e.target.value)} />
-      <TextField fullWidth margin="normal" label="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} />
-      <TextField fullWidth margin="normal" type="password" label="Contraseña" value={password} onChange={e => setPassword(e.target.value)} />
-      <Button variant="contained" fullWidth sx={{ mt: 2 }} onClick={handleRegister}>Registrarse</Button>
-    </Box>
-  );
-}
+export default Register;

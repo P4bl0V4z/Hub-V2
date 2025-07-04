@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model Usuario {
+  id                 Int                 @id @default(autoincrement())
+  email              String              @unique
+  password           String?
+  provider           String              @default("local")
+  providerId         String?
+  nombre             String?
+  tipoUsuario        String              @default("cliente")
+  creadoEn           DateTime            @default(now())
+  activo             Boolean             @default(false)
+  tokenVerificacion  String?
+  verificadoEn       DateTime?
+
+  usuarios_empresas  UsuariosEmpresas[]  // 👈 Relación inversa definida aquí
+
+  
+}
+
+model Empresa {
+  id                 Int                 @id @default(autoincrement())
+  nombre             String
+  ruc                String              @unique
+  creadaPor          Int
+  createdAt          DateTime            @default(now())
+
+  usuarios_empresas  UsuariosEmpresas[]  // 👈 Relación inversa definida aquí
+
+  @@map("empresa")
+}
+
+model Rol {
+  id                 Int                 @id @default(autoincrement())
+  nombre             String
+
+  usuarios_empresas  UsuariosEmpresas[]
+
+  @@map("rol")
+}
+
+model UsuariosEmpresas {
+  id         Int      @id @default(autoincrement())
+
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId  Int
+
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  empresaId  Int
+
+  rol        Rol      @relation(fields: [rolId], references: [id])
+  rolId      Int
+
+  @@map("usuarios_empresas")
+}
