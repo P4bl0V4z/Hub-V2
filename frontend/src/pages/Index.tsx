@@ -1,4 +1,3 @@
-
 import Sidebar from '@/components/Sidebar';
 import KpiCard from '@/components/KpiCard';
 import WorldMap from '@/components/WorldMap';
@@ -10,6 +9,13 @@ import MilestonesMap from '@/components/MilestonesMap';
 import { Package, FileCheck, Scale } from 'lucide-react';
 
 const Index = () => {
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const name = localStorage.getItem('beloop_user_name');
+    if (name) setUserName(name);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
@@ -27,7 +33,7 @@ const Index = () => {
           
           {/* Welcome and Diagnostic Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <WelcomeCard userName="Juan Circular" implementationPercentage={65} />
+            <WelcomeCard userName={userName || 'usuario'} implementationPercentage={65} />
             <DiagnosticCard />
           </div>
           

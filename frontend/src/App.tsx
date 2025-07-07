@@ -19,12 +19,11 @@ import Messages from "./pages/Messages";
 import Modules from "./pages/Modules";
 import Academy from "./pages/Academy";
 import Compliance from "./pages/Compliance";
+import Register from "./pages/Register";
 import DiagnosticTest from "./pages/DiagnosticTest";
 import GlobalSearch from "./components/GlobalSearch";
 import ChatAssistant from "./components/ChatAssistant";
 import VideoTutorialButton from "./components/VideoTutorialButton";
-
-// Admin Panel Pages
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminClients from "./pages/admin/AdminClients";
@@ -40,19 +39,16 @@ import HomePublic from "./pages/HomePublic";
 
 
 const App = () => {
-  // Create a client instance inside the component
+
   const [queryClient] = useState(() => new QueryClient());
-  // Simple auth state for demo purposes
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem("beloop_authenticated") === "true";
   });
 
-  // Get user role
   const [userRole, setUserRole] = useState(() => {
     return localStorage.getItem("beloop_user_role") || "user";
   });
 
-  // Listen for auth changes for demo purposes
   useEffect(() => {
     const checkAuth = () => {
       const auth = localStorage.getItem("beloop_authenticated") === "true";
@@ -65,9 +61,8 @@ const App = () => {
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
 
-  // For demo purposes, expose a global function to handle login
+
   useEffect(() => {
-    // @ts-ignore
     window.beLoopLogin = () => {
       localStorage.setItem("beloop_authenticated", "true");
       setIsAuthenticated(true);
@@ -76,7 +71,6 @@ const App = () => {
     };
   }, []);
 
-  // Get current path for video tutorials
   const [currentPath, setCurrentPath] = useState("");
   
   useEffect(() => {
@@ -90,7 +84,6 @@ const App = () => {
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
 
-  // Function to generate tutorial title based on current path
   const getTutorialTitle = () => {
     const pathMap: Record<string, string> = {
       "/": "Tutorial: Panel Principal",
@@ -108,7 +101,6 @@ const App = () => {
     return pathMap[currentPath] || "Tutorial: BeLoop";
   };
 
-  // Check if current path is admin path
   const isAdminPath = currentPath.startsWith('/admin');
 
   return (
@@ -172,6 +164,11 @@ const App = () => {
               } />
               <Route path="/diagnostic-test" element={
                 isAuthenticated ? <DiagnosticTest /> : <Navigate to="/login" replace />
+              } />
+              <Route path="/registro" element={
+                isAuthenticated ? 
+                  (userRole === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/" replace />)
+                  : <Register />
               } />
 
               {/* Admin Routes */}

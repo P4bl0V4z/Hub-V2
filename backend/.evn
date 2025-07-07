@@ -1,5 +1,0 @@
-DATABASE_URL=postgresql://hubuser:Hub.2025**@localhost:5433/beloophub
-JWT_SECRET=estaClaveN0laPuedeSaberNadie**
-MAIL_USER=desrrollo.beloop@gmail.com
-MAIL_PASS=clave_beloop
-MAIL_FROM=BeLoop Hub <noreply@beloop.io>

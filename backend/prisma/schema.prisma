@@ -25,7 +25,7 @@ model Usuario {
   tokenVerificacion  String?
   verificadoEn       DateTime?
 
-  usuarios_empresas  UsuariosEmpresas[]  // 👈 Relación inversa definida aquí
+  usuarios_empresas  UsuariosEmpresas[]  
 
   
 }
@@ -63,5 +63,4 @@ model UsuariosEmpresas {
   rol        Rol      @relation(fields: [rolId], references: [id])
   rolId      Int
 
-  @@map("usuarios_empresas")
 }

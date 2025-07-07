@@ -30,9 +30,13 @@ export class AuthService {
 
     const hashed = await bcrypt.hash(data.password, 10);
 
+    // Usás JWT como token de verificación
     const token = this.jwtService.sign(
       { email: data.email },
-      { secret: this.config.get('JWT_SECRET'), expiresIn: '1d' }
+      {
+        secret: this.config.get('JWT_SECRET'),
+        expiresIn: '1d',
+      },
     );
 
     await this.prisma.usuario.create({
@@ -42,6 +46,8 @@ export class AuthService {
         nombre: data.nombre,
         tokenVerificacion: token,
         activo: false,
+        creadoEn: new Date(),
+        verificadoEn: null,
       },
     });
 
@@ -98,6 +104,7 @@ export class AuthService {
     if (usuario.tokenVerificacion) {
       throw new UnauthorizedException('Cuenta no verificada');
     }
+
     const passwordOk = await bcrypt.compare(password, usuario.password);
     if (!passwordOk) {
       throw new UnauthorizedException('Credenciales inválidas');
