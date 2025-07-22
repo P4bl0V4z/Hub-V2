@@ -1,32 +1,36 @@
-# Etapa 1: Build
+# ---- Etapa de build ----
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copiar package.json e instalar dependencias
-COPY package*.json ./
-RUN npm install
+# Instalar pnpm (ya que tu proyecto usa pnpm)
+RUN npm install -g pnpm
 
-# Copiar el resto del código
-COPY . .
+# Copiar solo archivos necesarios para instalar dependencias
+COPY backend/package.json backend/pnpm-lock.yaml ./
 
-# Construir la app NestJS
-RUN npm run build
+# Instalar dependencias (sin dev para producción si quieres optimizar)
+RUN pnpm install --frozen-lockfile
 
-# Etapa 2: Runtime
+# Copiar todo el backend
+COPY backend/ .
+
+# Compilar NestJS
+RUN pnpm run build
+
+# ---- Etapa final (más liviana) ----
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar solo lo necesario desde builder
+# Instalar pnpm también en la imagen final
+RUN npm install -g pnpm
+
+# Copiar solo node_modules y build del builder
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY package*.json ./
+COPY --from=builder /app/package.json ./
 
-# Instalar solo dependencias de producción
-RUN npm install --omit=dev
-
-# Exponer puerto (el mismo que usas en main.ts)
 EXPOSE 3001
 
-# Comando para iniciar NestJS
 CMD ["node", "dist/main.js"]
