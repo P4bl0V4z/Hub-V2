@@ -34,7 +34,6 @@ const Login = () => {
     localStorage.setItem("beloop_user_role", "admin");
     localStorage.setItem("beloop_authenticated", "true");
     
-    // @ts-ignore
     if (window.beLoopLogin) window.beLoopLogin();
     
     toast({

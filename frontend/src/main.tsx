@@ -1,7 +1,17 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";  // Tu App.tsx que contiene BrowserRouter y las rutas
+import "./index.css";    // Tailwind u otros estilos globales
 
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+// Busca el elemento root que debe estar en index.html
+const rootElement = document.getElementById("root") as HTMLElement;
 
-// Using direct Leaflet implementation, not react-leaflet
-createRoot(document.getElementById("root")!).render(<App />);
+if (!rootElement) {
+  throw new Error("No se encontró el elemento #root en index.html");
+}
+
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import Sidebar from '@/components/Sidebar';
 import KpiCard from '@/components/KpiCard';
 import WorldMap from '@/components/WorldMap';
