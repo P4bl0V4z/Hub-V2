@@ -16,6 +16,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
   const port = process.env.PORT || 3001;
+  await app.setGlobalPrefix('api');
   await app.listen(port, '0.0.0.0'); // IMPORTANTE para Docker
   console.log(`Backend running on port ${port}`);
 }
