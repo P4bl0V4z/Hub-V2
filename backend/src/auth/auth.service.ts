@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../mailer/mailer.service';
+import { stringify } from 'querystring';
 
 @Injectable()
 export class AuthService {
@@ -27,10 +28,8 @@ export class AuthService {
     if (existing) {
       throw new BadRequestException('Email ya registrado');
     }
-
     const hashed = await bcrypt.hash(data.password, 10);
 
-    // Usás JWT como token de verificación
     const token = this.jwtService.sign(
       { email: data.email },
       {
