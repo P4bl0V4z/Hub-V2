@@ -4,19 +4,17 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-# Copiar solo package.json
 COPY frontend/package.json ./
 
-# Instalar dependencias sin lockfile
 RUN pnpm install --no-frozen-lockfile
 
-# Copiar el resto del frontend
 COPY frontend/ .
+ARG VITE_API_URL
 
-# Construir frontend
+ENV VITE_API_URL=${VITE_API_URL}
+
 RUN pnpm run build
 
-# Servir con nginx
 FROM nginx:1.25-alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
