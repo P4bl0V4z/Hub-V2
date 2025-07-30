@@ -9,14 +9,11 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: [
-      'http://localhost:8080',      // frontend local
-      'https://plataforma.beloop.io' // producción
-    ],
+    origin: ['http://localhost:8080', 'https://plataforma.beloop.io'],
     credentials: true,
   });
 
   app.useGlobalPipes(new ValidationPipe());
-  await app.listen(3001);
+  await app.listen(process.env.PORT || 3001, '0.0.0.0');
 }
 bootstrap();
