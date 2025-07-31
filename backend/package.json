@@ -5,8 +5,10 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@10.14.0",
   "scripts": {
     "build": "nest build",
+    "generate": "prisma generate",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
@@ -85,7 +87,7 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   },
-   "pnpm": {
+  "pnpm": {
     "overrides": {
       "typescript": "5.2.2"
     }
