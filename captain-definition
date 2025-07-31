@@ -1,18 +1,5 @@
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./backend/Dockerfile",
-  "preDeployFunction": "",
-  "containerHttpPort": "3001",
-  "notExposeAsWebApp": false,
-  "customNginxConfig": {
-    "location": "/",
-    "config": [
-      "add_header 'Access-Control-Allow-Origin' 'https://plataforma.beloop.io' always;",
-      "add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;",
-      "add_header 'Access-Control-Allow-Headers' 'Origin, Content-Type, Accept, Authorization' always;",
-      "add_header 'Access-Control-Allow-Credentials' 'true' always;",
-      "if ($request_method = OPTIONS) { return 204; }"
-    ]
-  }
+  "dockerfilePath": "./frontend/Dockerfile",
+  "context": "./frontend"
 }
-

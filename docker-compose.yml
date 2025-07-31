@@ -1,16 +1,16 @@
 services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
+#  frontend:
+ #   build: ./frontend
+  #  ports:
+  #    - "3000:80"
 
-  backend:
-    build: ./backend
-    ports:
-      - "3001:3000"
-    depends_on:
-      - db
-      - redis
+  #backend:
+   # build: ./backend
+    #ports:
+     # - "3001:3000"
+   # depends_on:
+   #   - db
+   #   - redis
 
   db:
     image: postgres:16
