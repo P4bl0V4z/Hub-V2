@@ -26,7 +26,7 @@ model Usuario {
   verificadoEn       DateTime?
 
   usuarios_empresas  UsuariosEmpresas[]  
-
+  @@map("usuario")
   
 }
 
