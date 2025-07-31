@@ -1,8 +1,7 @@
 {
   "schemaVersion": 2,
   "dockerfilePath": "./backend/Dockerfile",
-  "context": "./backend",
-"preDeployFunction": "",
+  "preDeployFunction": "",
   "containerHttpPort": "3001",
   "notExposeAsWebApp": false,
   "customNginxConfig": {
@@ -16,3 +15,4 @@
     ]
   }
 }
+
