@@ -1,43 +1,38 @@
 # ---- Etapa de build ----
 FROM node:20-alpine AS builder
 
-# Establecer directorio de trabajo
 WORKDIR /app
 
 # Instalar pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copiar sólo archivos de dependencias
-COPY backend/package.json backend/pnpm-lock.yaml ./backend/
+# Copiar dependencias
+COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias dentro de backend
-WORKDIR /app/backend
+# Instalar dependencias (con devDependencies)
 RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código del backend
-COPY backend/ .
+COPY . .
 
-# Generar cliente Prisma
-RUN npx prisma generate
+# Generar Prisma client
+RUN pnpm prisma generate
 
-# Compilar el proyecto NestJS
+# Compilar NestJS
 RUN pnpm run build
 
-# ---- Etapa final: producción ----
+# ---- Etapa final ----
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Instalar pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copiar archivos necesarios desde el builder
-COPY --from=builder /app/backend/package.json ./
-COPY --from=builder /app/backend/pnpm-lock.yaml ./
-COPY --from=builder /app/backend/node_modules ./node_modules
-COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/backend/prisma ./prisma
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3001
-
 CMD ["node", "dist/main.js"]
