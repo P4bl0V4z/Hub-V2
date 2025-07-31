@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Generar Prisma client
-RUN pnx prisma generate
+RUN npx prisma generate
 
 # Compilar NestJS
 RUN pnpm run build
