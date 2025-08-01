@@ -27,6 +27,7 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
 CMD rm -rf node_modules
 RUN pnpm install --force
+RUN pnpm approve-builds
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
