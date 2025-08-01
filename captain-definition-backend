@@ -1,6 +1,7 @@
 {
   "schemaVersion": 2,
   "dockerfilePath": "./backend/Dockerfile",
+  "context": "./backend",
   "preDeployFunction": "",
   "containerHttpPort": "3001",
   "notExposeAsWebApp": false,

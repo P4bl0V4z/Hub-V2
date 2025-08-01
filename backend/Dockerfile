@@ -3,28 +3,26 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+RUN npm install -g pnpm
 # Instalar pnpm
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 # Copiar dependencias
-COPY package.json pnpm-lock.yaml ./
+COPY backend/package*.json backend/pnpm-lock.yaml ./
 
 # Instalar todas las dependencias (dev y prod)
 RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código del backend
-COPY . .
-
+COPY backend/ .
 # Generar Prisma client usando el script del package.json
-RUN pnpm run generate
-
-# Compilar NestJS
+RUN npx prisma generate
 RUN pnpm run build
-
 # ---- Etapa final (producción) ----
 FROM node:20-alpine
 
 WORKDIR /app
+RUN npm install -g pnpm
 
 # Instalar pnpm
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
