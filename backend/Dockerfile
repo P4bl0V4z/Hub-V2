@@ -1,40 +1,32 @@
-# --- ETAPA DE BUILD ---
+# ---- Etapa de build ----
 FROM node:20-alpine AS builder
 
-RUN npm install -g pnpm
-
 WORKDIR /app
 
-COPY backend/package.json backend/pnpm-lock.yaml ./
+RUN npm install -g pnpm
+# Copiar dependencias
+COPY backend/package*.json backend/pnpm-lock.yaml ./
+
+# Instalar todas las dependencias (dev y prod)
 RUN pnpm install --frozen-lockfile
 
+# Copiar el resto del código del backend
 COPY backend/ .
-RUN pnpm add -D typescript@5.2.2
+# Generar Prisma client usando el script del package.json
 RUN npx prisma generate
-
-# --- MODIFICACIONES AQUÍ PARA DEBUGGING ---
-# Añade `&& echo "Build completed successfully!"` para verificar la ejecución
-# Añade `|| exit 1` para que el Docker build falle explícitamente si `nest build` no tiene éxito.
-# Añade `ls -la` para ver el contenido del directorio después del build.
-RUN pnpm run build || (echo "!!!!! NEST BUILD FAILED !!!!!" && exit 1)
-RUN echo "--- Contents of /app after build ---"
-RUN ls -la /app
-RUN echo "--- Contents of /app/dist ---"
-RUN ls -la /app/dist # This will likely fail if dist isn't there, but gives confirmation
-# --- FIN DE MODIFICACIONES ---
-
-# --- ETAPA FINAL (PRODUCCIÓN) ---
+RUN pnpm run build
+# ---- Etapa final (producción) ----
 FROM node:20-alpine
 
+WORKDIR /app
 RUN npm install -g pnpm
 
-WORKDIR /app
-
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
-
-RUN pnpm install --prod --frozen-lockfile --force
-RUN pnpm add -D typescript@5.2.2
+# Copiar archivos necesarios para producción
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/node_modules ./node_modules
+CMD rm -rf node_modules
+RUN pnpm install --force
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
