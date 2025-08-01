@@ -1,5 +1,5 @@
 # ---- Etapa de build ----
-FROM node:20-slim AS builder
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN echo "Contenido de /app tras build:" && ls -al /app
 RUN echo "Contenido de dist:" && ls -al /app/dist || echo "dist no existe"
 
 # ---- Etapa final ----
-FROM node:20-slim AS builder
+FROM node:20-slim
 
 WORKDIR /app
 
