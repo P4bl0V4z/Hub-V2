@@ -4,9 +4,6 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 RUN npm install -g pnpm
-# Instalar pnpm
-RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
-
 # Copiar dependencias
 COPY backend/package*.json backend/pnpm-lock.yaml ./
 
@@ -24,8 +21,6 @@ FROM node:20-alpine
 WORKDIR /app
 RUN npm install -g pnpm
 
-# Instalar pnpm
-RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 # Copiar archivos necesarios para producción
 COPY --from=builder /app/package.json ./
