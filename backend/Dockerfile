@@ -9,7 +9,7 @@ COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY backend/ .
-
+RUN pnpm add -D typescript@5.2.2
 RUN npx prisma generate
 
 # --- MODIFICACIONES AQUÍ PARA DEBUGGING ---
@@ -34,7 +34,7 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 
 RUN pnpm install --prod --frozen-lockfile --force
-
+RUN pnpm add -D typescript@5.2.2
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
