@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
-    "tsConfigPath": "tsconfig.build.json"
+    "tsConfigPath": "tsconfig.build.json",
+    "outDir": "./dist"
   }
 }
