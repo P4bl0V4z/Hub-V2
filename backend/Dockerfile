@@ -14,7 +14,7 @@ RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --unsafe-perm=true
 
-COPY backend/ .
+COPY . .
 RUN pnpm install
 RUN pnpm run generate
 RUN pnpm run build
