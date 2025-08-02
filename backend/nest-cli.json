@@ -5,7 +5,6 @@
   "entryFile": "main",
   "compilerOptions": {
     "tsConfigPath": "tsconfig.build.json",
-    "deleteOutDir": false,
     "watchAssets": true
   }
 }
