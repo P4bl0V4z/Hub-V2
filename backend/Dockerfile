@@ -30,7 +30,9 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+#COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+#RUN pnpm exec prisma generate
+
 
 EXPOSE 3001
 CMD ["node", "dist/main.js"]
