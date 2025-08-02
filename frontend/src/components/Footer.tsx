@@ -1,84 +1,77 @@
+import logo from "@/assets/landing/logo_beloop.svg";
+import corfoLogo from "@/assets/landing/corfo.svg";
+import mailIcon from "@/assets/landing/mail.svg";
+import whatsappIcon from "@/assets/landing/whatsapp.svg";
+import linkedinIcon from "@/assets/landing/linkedin.svg";
+import instagramIcon from "@/assets/landing/instagram.svg";
+import facebookIcon from "@/assets/landing/facebook.svg";
+import youtubeIcon from "@/assets/landing/youtube.svg";
+import globeIcon from "@/assets/landing/beloop.svg";
+import sumateText from "@/assets/landing/sumate-ts.svg";
+import suscribete from "@/assets/landing/suscribete_al_newsletter.svg";
 
-import { Link } from "react-router-dom";
-import { Separator } from "@/components/ui/separator";
-
-const Footer = () => {
-  const currentYear = new Date().getFullYear();
-  
+export default function Footer() {
   return (
-    <footer className="bg-background border-t py-6 mt-8">
-      <div className="container">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div>
-            <h3 className="font-bold text-lg mb-4">BeLoop</h3>
-            <p className="text-sm text-muted-foreground">
-              Plataforma líder en gestión de ciclo de vida para una economía circular.
-              Soluciones integrales para el cumplimiento normativo y la sostenibilidad empresarial.
-            </p>
-          </div>
+    <footer className="w-full bg-[#000] border-t-4 border-[#05DD71] text-[#F9F9F9]">
+      {/* Contenedor general con padding responsivo */}
+      <div className="w-full px-4 sm:px-6 md:pl-[50px] md:pr-[10px] py-[50px]">
+        {/* Contenido central responsivo */}
+        <div className="w-full ml-6 pr-8 flex flex-col md:flex-row justify-between items-start gap-12">
           
-          <div>
-            <h4 className="font-medium mb-4">Soluciones</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link to="/inventory" className="text-muted-foreground hover:text-foreground">Gestión de Inventario</Link></li>
-              <li><Link to="/compliance" className="text-muted-foreground hover:text-foreground">Cumplimiento REP</Link></li>
-              <li><Link to="/modules" className="text-muted-foreground hover:text-foreground">Módulos especializados</Link></li>
-              <li><Link to="/reports" className="text-muted-foreground hover:text-foreground">Reportes de sostenibilidad</Link></li>
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="font-medium mb-4">Recursos</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link to="/academy" className="text-muted-foreground hover:text-foreground">Academia BeLoop</Link></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground">Blog</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground">Webinars</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground">Casos de éxito</a></li>
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="font-medium mb-4">Contacto</h4>
-            <ul className="space-y-2 text-sm">
-              <li className="text-muted-foreground">contacto@beloop.com</li>
-              <li className="text-muted-foreground">+34 911 234 567</li>
-              <li className="text-muted-foreground">C/ Gran Vía 123, Madrid</li>
-              <li className="flex space-x-4 mt-4">
-                <a href="#" className="text-foreground hover:text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-                </a>
-                <a href="#" className="text-foreground hover:text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                </a>
-                <a href="#" className="text-foreground hover:text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        
-        <Separator className="my-6" />
-        
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <p className="text-sm text-muted-foreground">
-            © {currentYear} BeLoop. Todos los derechos reservados.
-          </p>
-          <div className="flex space-x-4 mt-4 md:mt-0">
-            <Link to="#" className="text-xs text-muted-foreground hover:text-foreground">Términos de servicio</Link>
-            <Link to="#" className="text-xs text-muted-foreground hover:text-foreground">Política de privacidad</Link>
-            <Link to="#" className="text-xs text-muted-foreground hover:text-foreground">Cookies</Link>
-          </div>
-        </div>
+          {/* Columna izquierda */}
+          <div className="flex flex-col items-start gap-4">
+            <img src={logo} alt="BeLoop Logo" className="h-14" />
+            <img src={sumateText} alt="Súmate a la transición circular" className="w-auto h-auto" />
 
-        <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            BeLoop cumple con el Reglamento General de Protección de Datos (RGPD) y la Ley Orgánica de Protección de Datos y Garantía de los Derechos Digitales.
-          </p>
+            {/* Correos */}
+            <div className="flex flex-col gap-1 mt-1">
+              <div className="text-[18px] font-semibold leading-[23px] font-['Source_Code_Pro'] [font-feature-settings:'salt'_on,'liga'_off]">
+                <span className="text-[#F9F9F9]">Ventas:</span> gabriel@beloop.io
+              </div>
+              <div className="text-[18px] font-semibold leading-[23px] font-['Source_Code_Pro'] [font-feature-settings:'salt'_on,'liga'_off]">
+                <span className="text-[#F9F9F9]">Asuntos corporativos:</span> contacto@beloop.io
+              </div>
+              <div className="text-[18px] font-semibold leading-[23px] font-['Source_Code_Pro'] [font-feature-settings:'salt'_on,'liga'_off]">
+                <span className="text-[#F9F9F9]">Operaciones:</span> operaciones.beloop@gmail.com
+              </div>
+            </div>
+
+            {/* Íconos sociales */}
+            <div className="flex gap-3 mt-2 flex-wrap">
+              {[mailIcon, whatsappIcon, linkedinIcon, instagramIcon, facebookIcon, youtubeIcon, globeIcon].map((icon, idx) => (
+                <a key={idx} href="#" target="_blank" rel="noopener noreferrer">
+                  <img src={icon} alt={`social-${idx}`} className="h-5" />
+                </a>
+              ))}
+            </div>
+
+            <div className=" text-gray-400 text-xs font-mono mt-3">
+              Copyright | 2025 beloop.io
+            </div>
+          </div>
+
+          {/* Columna derecha */}
+          <div className="flex flex-col items-end justify-between w-full md:w-auto">
+
+            <div>
+                <img
+                  src={suscribete}
+                  alt="SUSCRÍBETE AL NEWSLETTER"
+                  className="w-auto max-w-[300px] md:max-w-[340px] lg:max-w-[380px]"
+                />
+            </div>
+
+            <div className="text-right mt-12">
+              <img src={corfoLogo} alt="CORFO" className="h-[6vw] ml-auto" />
+            </div>
+
+            <div className="text-[.65rem] font-mono text-right opacity-70 mt-[60px]">
+              Términos y condiciones&nbsp;|&nbsp;Política de privacidad&nbsp;|&nbsp;Política de calidad
+            </div>
+          </div>
+
         </div>
       </div>
     </footer>
   );
-};
-
-export default Footer;
+}
