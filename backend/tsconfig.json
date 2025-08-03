@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "es2017xs",
     "module": "commonjs",
     "declaration": true,
     "removeComments": true,
