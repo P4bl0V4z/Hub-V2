@@ -1,6 +1,5 @@
 {
   "schemaVersion": 2,
-  "dockerfileLines": [],
   "dockerfileWorkingDir": "backend",
   "rootDirectory": "backend",
   "containerHttpPort": "3001",
