@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./backend/Dockerfile",
-  "context": "./backend",
-  "preDeployFunction": "",
+  "templateId": "node-express",
+  "dockerfileLines": [],
+  "dockerfileWorkingDir": "backend",
+  "rootDirectory": "backend",
   "containerHttpPort": "3001",
   "notExposeAsWebApp": false
 }
-
