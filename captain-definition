@@ -2,6 +2,5 @@
   "schemaVersion": 2,
   "dockerfileWorkingDir": "backend",
   "rootDirectory": "backend",
-  "containerHttpPort": "3001",
-  "notExposeAsWebApp": false
+  "containerHttpPort": "3001"
 }
