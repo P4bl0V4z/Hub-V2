@@ -1,7 +1,5 @@
 {
   "schemaVersion": 2,
-  "templateId": "node-express",
-"templateVersion": 1,
   "dockerfileLines": [],
   "dockerfileWorkingDir": "backend",
   "rootDirectory": "backend",
