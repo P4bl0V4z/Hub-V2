@@ -10,10 +10,11 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+RUN echo "Estoy en:" && pwd && echo "Contenido inicial:" && ls -al
+
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --unsafe-perm=true
-RUN ls
 COPY . .
 RUN pnpm run generate
 RUN pnpm run build
