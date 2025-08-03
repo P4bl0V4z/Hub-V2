@@ -13,7 +13,7 @@ RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 COPY ./package.json ./pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --unsafe-perm=true
-
+RUN ls
 COPY . .
 RUN pnpm run generate
 RUN pnpm run build
