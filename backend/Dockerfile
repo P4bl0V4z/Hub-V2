@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y python3 build-essentiallibssl-dev && rm -rf /var/lib/apt/lists/*
+#RUN apt-get update && apt-get install -y python3 build-essentiallibssl-dev && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 COPY ./package.json ./pnpm-lock.yaml ./
