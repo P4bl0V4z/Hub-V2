@@ -7,8 +7,6 @@
   "license": "UNLICENSED",
   "packageManager": "pnpm@10.14.0",
   "scripts": {
-#    "build": "nest build", 
-
     "build": "tsc -p tsconfig.build.json && nest build",
     "generate": "prisma generate",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
