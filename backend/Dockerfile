@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get install -y openssl
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 COPY backend/package.json backend/pnpm-lock.yaml ./
