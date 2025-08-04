@@ -55,8 +55,8 @@ COPY --from=builder /app/prisma ./prisma
 # Copia los archivos de configuración de pnpm para el runtime.
 # Estos suelen estar en el root del proyecto si no se especifica lo contrario.
 # Revisa tu proyecto para confirmar sus nombres y ubicación.
-COPY --from=builder /app/.pnpmfile.cjs ./.pnpmfile.cjs
-COPY --from=builder /app/.pnpm-workspace.yaml ./.pnpm-workspace.yaml
+#COPY --from=builder /app/.pnpmfile.cjs ./.pnpmfile.cjs
+#COPY --from=builder /app/.pnpm-workspace.yaml ./.pnpm-workspace.yaml
 # También podrías necesitar el directorio '.pnpm' si tu setup de pnpm lo requiere para el runtime,
 # o si no confías en que el `pnpm start` maneje el store completamente.
 # COPY --from=builder /app/.pnpm ./.pnpm # Esto copiará el store de pnpm si es necesario.
