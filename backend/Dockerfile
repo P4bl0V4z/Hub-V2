@@ -21,6 +21,8 @@ COPY backend/ ./
 RUN pnpm run generate
 RUN pnpm run build
 
+RUN ls -la /app && ls -la /app/dist
+
 # --- Etapa final ---
 FROM node:20-slim
 
