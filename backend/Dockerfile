@@ -1,3 +1,4 @@
+# Etapa de build
 FROM node:20-slim AS builder
 
 WORKDIR /app
@@ -10,20 +11,18 @@ RUN apt-get update && apt-get install -y \
 
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
-# Copiar archivos desde la raíz del repo
 COPY backend/package.json backend/pnpm-lock.yaml ./
-
 RUN pnpm install --frozen-lockfile
 
-# Copiar el resto del código fuente del backend
 COPY backend/ ./
 
-RUN pnpm run generate
+# Generar Prisma Client con binarios específicos
+RUN pnpm prisma generate --binary-targets native,debian-openssl-1.1.x
+
+# Compilar el proyecto
 RUN pnpm run build
 
-RUN ls -la /app && ls -la /app/dist
-
-# --- Etapa final ---
+# Etapa final
 FROM node:20-slim
 
 WORKDIR /app
@@ -32,11 +31,11 @@ RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
-
 COPY --from=builder /app/node_modules ./node_modules
-
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-RUN ls -la ./dist 
+
 EXPOSE 3001
+
 CMD ["pnpm", "start:prod"]
