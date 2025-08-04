@@ -16,7 +16,7 @@ COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código fuente del backend
-COPY backend ./
+COPY backend/ ./
 
 RUN pnpm run generate
 RUN pnpm run build
