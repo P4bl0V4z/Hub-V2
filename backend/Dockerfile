@@ -35,4 +35,4 @@ COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3001
 RUN corepack enable
-CMD ["pnpm", "start:prod"]
+CMD ["node", "start:prod"]
