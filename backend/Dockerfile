@@ -19,7 +19,8 @@ RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 # Copiar archivos de configuración de pnpm y el package.json
 # Esto es esencial para que pnpm sepa qué instalar.
-COPY ./package.json ./pnpm-lock.yaml ./
+RUN ls -lsah
+COPY ./backend/package.json ./backend/pnpm-lock.yaml ./
 
 # Instalar las dependencias de producción.
 # `--frozen-lockfile` asegura instalaciones deterministas.
