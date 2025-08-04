@@ -19,12 +19,12 @@ RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 # Copiar archivos de configuración de pnpm y el package.json
 # Esto es esencial para que pnpm sepa qué instalar.
-COPY package.json pnpm-lock.yaml ./
+COPY ./package.json ./pnpm-lock.yaml ./
 
 # Instalar las dependencias de producción.
 # `--frozen-lockfile` asegura instalaciones deterministas.
 # `--unsafe-perm=true` (opcional) si tienes problemas de permisos con algunas dependencias.
-RUN pnpm install --frozen-lockfile --prod # `--prod` instala solo dependencias de producción
+RUN pnpm install --frozen-lockfile 
 
 # Copiar el resto del código fuente del proyecto
 # Asegúrate de que .dockerignore excluya node_modules, dist, etc. si no los necesitas copiar explícitamente.
