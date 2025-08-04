@@ -2,6 +2,23 @@
   "schemaVersion": 2,
   "dockerfilePath": "./backend/Dockerfile",
   "dockerfileWorkingDir": "backend",
+"args": {
+    "GOOGLE_CLIENT_ID": "$$cap_GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET": "$$cap_GOOGLE_CLIENT_SECRET",
+    "DATABASE_URL": "$$cap_DATABASE_URL",
+    "REDIS_HOST": "$$cap_REDIS_HOST",
+    "JWT_SECRET": "$$cap_JWT_SECRET",
+    "MAIL_HOST": "$$cap_MAIL_HOST",
+    "MAIL_USER": "$$cap_MAIL_USER",
+    "MAIL_PASS": "$$cap_MAIL_PASS",
+    "MAIL_PORT": "$$cap_MAIL_PORT",
+    "MAIL_SECURE": "$$cap_MAIL_SECURE",
+    "MAIL_TLS_REJECT_UNAUTHORIZED": "$$cap_MAIL_TLS_REJECT_UNAUTHORIZED",
+    "MAIL_FROM_NAME": "$$cap_MAIL_FROM_NAME",
+    "FRONTEND_URL": "$$cap_FRONTEND_URL",
+    "PORT": "$$cap_PORT",
+    "MAIL_FROM": "$$cap_MAIL_FROM"
+  },
   "containerHttpPort": "3001",
   "notExposeAsWebApp": false,
   "customNginxConfig": {
