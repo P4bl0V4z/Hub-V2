@@ -35,4 +35,5 @@ COPY --from=builder /app/prisma ./prisma
 RUN ls -la ./dist 
 EXPOSE 3001
 RUN npm install pnpm
+RUN npm install -g npm@11.5.2
 CMD ["pnpm", "start:prod"]
