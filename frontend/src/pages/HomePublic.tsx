@@ -6,6 +6,8 @@ import BenefitsBar from "@/components/BenefitsBar";
 import BenefitsClue from "@/components/landing/clueBenefits";
 import PasoaPaso from "@/components/landing/PasoaPaso";
 import PlanesPrecios from "@/components/landing/PlanesPrecios";
+import NuestrosClientesSection from "@/components/landing/NuestrosClientesSection";
+import PreguntasFrecuentesSection from "../components/landing/PreguntasFrecuentesSection";    
 
 const HomePublic = () => {
   return (
@@ -16,7 +18,10 @@ const HomePublic = () => {
       <InitialCompanySection />
       <BenefitsClue />
       <PasoaPaso />
-      <PlanesPrecios />      
+      <PlanesPrecios />
+      <NuestrosClientesSection />
+      <PreguntasFrecuentesSection />
+         
       {/*<InitialCompanySection />*/}
       <Footer />
       

@@ -12,7 +12,7 @@ import suscribete from "@/assets/landing/suscribete_al_newsletter.svg";
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-[#000] border-t-4 border-[#05DD71] text-[#F9F9F9]">
+    <footer className="w-full bg-[#000] border-t-[6px] border-[#05DD71] text-[#F9F9F9]">
       {/* Contenedor general con padding responsivo */}
       <div className="w-full px-4 sm:px-6 md:pl-[50px] md:pr-[10px] py-[50px]">
         {/* Contenido central responsivo */}
