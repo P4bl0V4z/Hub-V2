@@ -32,7 +32,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-
+RUN ls -la .dist 
 EXPOSE 3001
-RUN corepack enable
-CMD ["node", "dist/main"]
+RUN npm install pnpm
+CMD ["pnpm", "start:prod"]
