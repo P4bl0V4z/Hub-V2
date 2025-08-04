@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "dockerfilePath": "./backend/Dockerfile",
-  "context": "./backend",
+  "dockerfileWorkingDir": "backend",
   "containerHttpPort": "3001",
   "notExposeAsWebApp": false,
   "customNginxConfig": {
