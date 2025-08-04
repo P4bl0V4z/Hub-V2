@@ -28,8 +28,13 @@ FROM node:20-slim
 
 WORKDIR /app
 
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
+
+COPY --from=builder /app/node_modules ./node_modules
+
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 RUN ls -la ./dist 
