@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2017xs",
+    "target": "es2020",
     "module": "commonjs",
     "declaration": true,
     "removeComments": true,
@@ -20,7 +20,6 @@
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "strict": true,
-    "useDefineForClassFields": false,
-    "deleteOutDir": false
+    "useDefineForClassFields": false
   }
 }
