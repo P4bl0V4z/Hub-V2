@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY backend/ ./
 
 # Generar Prisma Client con binarios específicos
-RUN pnpm prisma generate --binary-targets native,debian-openssl-1.1.x
+RUN pnpm prisma generate
 
 # Compilar el proyecto
 RUN pnpm run build
