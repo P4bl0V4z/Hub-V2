@@ -78,7 +78,7 @@ const PlanesPrecios: React.FC<PlanesPrecios> = ({ className = '' }) => {
   };
 
   return (
-    <section className={`w-full bg-gray-50 py-40 ${className}`}>
+    <section id="planes" className={`w-full bg-gray-50 py-40 ${className}`}>
       <div className="max-w-7xl mx-auto px-4">
         {/* Título principal con imagen */}
         <div className="text-center mb-16">

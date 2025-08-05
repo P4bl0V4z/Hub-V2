@@ -3,7 +3,7 @@ import flecha from "@/assets/landing/flecha.svg";
 
 export default function InitialCompanySection() {
   return (
-    <section className="bg-[#fafbfa] w-full flex flex-col items-center py-16 sm:py-24 md:py-32 lg:py-48 relative px-4 sm:px-6 lg:px-8">
+    <section id="usuarios" className="bg-[#fafbfa] w-full flex flex-col items-center py-16 sm:py-24 md:py-32 lg:py-48 relative px-4 sm:px-6 lg:px-8">
       {/* Contenedor relativo para superponer la flecha */}
       <div className="w-full max-w-7xl mx-auto relative flex flex-col items-center">
         {/* Flecha: absolutamente posicionada FUERA de la caja */}

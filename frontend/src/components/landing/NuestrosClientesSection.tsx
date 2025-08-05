@@ -6,7 +6,7 @@ import tevaIcon from "@/assets/landing/teva.svg";
 
 export default function NuestrosClientesSection() {
   return (
-    <section
+    <section id = "clientes"
       className="
         w-full 
         bg-white 

@@ -1,27 +1,33 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import logo from '../assets/landing/logo_beloop.svg';
 import orn from '../assets/landing/orn.svg';
 import glass from '../assets/landing/glass.svg';
 import user from '../assets/landing/user.svg';
 
 const navLinks = [
-  { label: 'Usuarios', href: '/usuarios' },
-  { label: 'Beneficios', href: '/beneficios' },
-  { label: 'Paso A Paso', href: '/paso-a-paso' },
-  { label: 'Planes', href: '/planes' },
-  { label: 'Clientes', href: '/clientes' },
+  { label: 'Usuarios', href: '#usuarios' },
+  { label: 'Beneficios', href: '#beneficios' },
+  { label: 'Paso A Paso', href: '#paso-a-paso' },
+  { label: 'Planes', href: '#planes' },
+  { label: 'Clientes', href: '#clientes' },
 ];
 
 export default function Navbar() {
-  const location = useLocation();
-  const currentPath = location.pathname;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const target = document.querySelector(href);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+    setIsMenuOpen(false);
+  };
 
   return (
     <nav className="w-full bg-[#000] border-b-[6px] border-[#05DD71] z-50">
       <div className="w-full mx-auto flex items-center justify-between px-4 sm:px-6 md:px-8 h-[80px] sm:h-[90px] md:h-[104px] overflow-x-hidden">
-        
+
         {/* Logo */}
         <a href="/" className="flex-shrink-0 flex items-center">
           <img src={logo} alt="BeLoop logo" className="h-6 sm:h-8 md:h-10 w-auto" />
@@ -33,7 +39,8 @@ export default function Navbar() {
             <li key={link.label} className="flex-shrink-0">
               <a
                 href={link.href}
-                className={`
+                onClick={(e) => handleAnchorClick(e, link.href)}
+                className="
                   text-[#F9F9F9]
                   text-sm lg:text-base
                   tracking-widest
@@ -41,10 +48,8 @@ export default function Navbar() {
                   duration-300
                   hover:text-[#05DD71]
                   whitespace-nowrap
-                  ${currentPath === link.href
-                    ? 'font-bold'
-                    : 'font-thin opacity-80'}
-                `}
+                  font-thin opacity-80
+                "
               >
                 {link.label}
               </a>
@@ -54,7 +59,7 @@ export default function Navbar() {
 
         {/* Mobile menu button + Icons */}
         <div className="flex items-center gap-2 justify-end flex-shrink-0">
-          {/* Hamburger menu button - solo visible en móvil */}
+          {/* Hamburger menu button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden flex flex-col justify-center items-center w-6 h-6 cursor-pointer"
@@ -87,8 +92,8 @@ export default function Navbar() {
             <li key={link.label}>
               <a
                 href={link.href}
-                onClick={() => setIsMenuOpen(false)}
-                className={`
+                onClick={(e) => handleAnchorClick(e, link.href)}
+                className="
                   block text-[#F9F9F9]
                   text-sm
                   tracking-wide
@@ -97,10 +102,8 @@ export default function Navbar() {
                   duration-300
                   hover:text-[#05DD71]
                   hover:pl-2
-                  ${currentPath === link.href
-                    ? 'font-bold text-[#05DD71]'
-                    : 'font-thin opacity-80'}
-                `}
+                  font-thin opacity-80
+                "
               >
                 {link.label}
               </a>

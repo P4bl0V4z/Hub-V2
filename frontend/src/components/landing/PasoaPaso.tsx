@@ -10,7 +10,7 @@ interface PasoAPasoProps {
 
 const PasoAPaso: React.FC<PasoAPasoProps> = ({ className = '' }) => {
   return (
-    <section className={`w-full bg-[#02090A] pt-[180px] pb-0 ${className}`}>
+    <section id = "paso-a-paso" className={`w-full bg-[#02090A] pt-[180px] pb-0 ${className}`}>
       <div className="max-w-7xl h-[600px] mx-auto px-4">
         {/* Título principal */}
         <div className="flex flex-col items-center mb-16">

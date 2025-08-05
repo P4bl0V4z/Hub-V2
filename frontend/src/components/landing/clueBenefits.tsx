@@ -25,7 +25,7 @@ export default function BeneficiosClavesSection() {
   const activeObj = BENEFICIOS.find(b => b.key === active);
 
   return (
-    <section className="w-full bg-[#fafbfa] flex flex-col items-center py-1 md:py-12 lg:py-20 px-4">
+    <section id = "beneficios" className="w-full bg-[#fafbfa] flex flex-col items-center py-1 md:py-12 lg:py-20 px-4">
       {/* Título con imagen */}
       <div className="flex flex-col items-center mb-8 md:mb-12 lg:mb-16">
         <img 
