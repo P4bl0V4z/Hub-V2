@@ -50,7 +50,6 @@ COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY backend/ ./
-RUN rm -rf dist
 
 # Generar Prisma Client con binarios específicos
 RUN pnpm prisma generate
@@ -59,8 +58,7 @@ RUN pnpm prisma generate
 #RUN pnpm run build
 RUN pnpm exec tsc -p tsconfig.build.json && echo "✅ tsc ok"
 RUN pnpm exec nest build && echo "✅ nest ok"
-RUN find /app -type d -o -type f
-RUN echo "📂 Verificando /app/dist:" && ls -lah /app/dist
+RUN echo "📂 Contenido de /app tras build:" && find /app -type d -name "dist" -exec ls -lah {} \;
 
 # Etapa final
 FROM node:20-slim
