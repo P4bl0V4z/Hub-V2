@@ -58,6 +58,7 @@ RUN pnpm prisma generate
 #RUN pnpm run build
 RUN pnpm exec tsc -p tsconfig.build.json && echo "✅ tsc ok"
 RUN pnpm exec nest build && echo "✅ nest ok"
+RUN find /app -type d -o -type f
 
 # Etapa final
 FROM node:20-slim
