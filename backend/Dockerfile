@@ -52,8 +52,9 @@ RUN pnpm install --frozen-lockfile
 COPY backend/ ./
 
 # Generar Prisma Client con binarios específicos
-RUN pnpm prisma generate
-RUN echo "📂 Verificando Prisma Client generado:" && ls -lah node_modules/.pnpm/@prisma+client*/node_modules/@prisma/client
+
+RUN pnpm exec prisma db push --force-reset && echo "✅ Prisma DB push ok"
+RUN pnpm exec prisma generate && echo "✅ Prisma Client generado"
 
 # Compilar el proyecto
 #RUN pnpm run build
