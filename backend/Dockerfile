@@ -53,8 +53,8 @@ COPY backend/ ./
 
 # Generar Prisma Client con binarios específicos
 
-RUN pnpm exec prisma db push --force-reset && echo "✅ Prisma DB push ok"
-RUN pnpm exec prisma generate && echo "✅ Prisma Client generado"
+#RUN pnpm exec prisma db push --force-reset && echo "✅ Prisma DB push ok"
+#RUN pnpm exec prisma generate && echo "✅ Prisma Client generado"
 
 # Compilar el proyecto
 #RUN pnpm run build
