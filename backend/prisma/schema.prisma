@@ -13,55 +13,63 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-model Usuario {
-  id                 Int                 @id @default(autoincrement())
-  email              String              @unique
-  password           String?
-  provider           String              @default("local")
-  providerId         String?
-  nombre             String?
-  tipoUsuario        String              @default("cliente")
-  creadoEn           DateTime            @default(now())
-  activo             Boolean             @default(false)
-  tokenVerificacion  String?
-  verificadoEn       DateTime?
 
-  usuarios_empresas  UsuariosEmpresas[]  
-  @@map("usuario")
-  
+// aca comienza todo
+
+
+model Usuario {
+  id                Int                 @id @default(autoincrement())
+  email             String              @unique
+  password          String
+  nombre            String
+  creadoEn          DateTime            @default(now()) @map("creado_en")
+  actualizadoEn     DateTime            @updatedAt @map("actualizado_en")
+  tokenVerificacion String?            @map("token_verificacion")
+  activo            Boolean             @default(false)
+  verificadoEn      DateTime?           @map("verificado_en")
+  tipoUsuario       String?             @map("tipo_usuario") // opcional, para flags globales
+
+  empresas          UsuarioEmpresa[]
 }
 
 model Empresa {
-  id                 Int                 @id @default(autoincrement())
-  nombre             String
-  ruc                String              @unique
-  creadaPor          Int
-  createdAt          DateTime            @default(now())
+  id                Int                 @id @default(autoincrement())
+  nombre            String
+  creadoEn          DateTime            @default(now()) @map("creado_en")
+  esEmpresaMaestra  Boolean             @default(false)
 
-  usuarios_empresas  UsuariosEmpresas[]  // 👈 Relación inversa definida aquí
-
-  @@map("empresa")
+  usuarios          UsuarioEmpresa[]
 }
 
 model Rol {
-  id                 Int                 @id @default(autoincrement())
-  nombre             String
+  id                  Int           @id @default(autoincrement())
+  nombre              String        @unique
+  descripcion         String?
+  soloEmpresaMaestra  Boolean       @default(false)
 
-  usuarios_empresas  UsuariosEmpresas[]
-
-  @@map("rol")
+  usuarios            UsuarioRol[]
 }
 
-model UsuariosEmpresas {
-  id         Int      @id @default(autoincrement())
+model UsuarioEmpresa {
+  id         Int            @id @default(autoincrement())
+  usuarioId  Int            @map("usuario_id")
+  empresaId  Int            @map("empresa_id")
 
-  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
-  usuarioId  Int
+  usuario    Usuario        @relation(fields: [usuarioId], references: [id])
+  empresa    Empresa        @relation(fields: [empresaId], references: [id])
 
-  empresa    Empresa  @relation(fields: [empresaId], references: [id])
-  empresaId  Int
+  roles      UsuarioRol[]
 
-  rol        Rol      @relation(fields: [rolId], references: [id])
-  rolId      Int
+  @@unique([usuarioId, empresaId])
+}
 
+model UsuarioRol {
+  id                Int             @id @default(autoincrement())
+  usuarioEmpresaId  Int             @map("usuario_empresa_id")
+  rolId             Int             @map("rol_id")
+
+  usuarioEmpresa    UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
+  rol               Rol            @relation(fields: [rolId], references: [id])
+
+  @@unique([usuarioEmpresaId, rolId])
 }

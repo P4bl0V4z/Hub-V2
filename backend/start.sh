@@ -10,7 +10,8 @@ done
 
 # Ahora Prisma
 pnpm prisma generate
+pnpm prisma deb push --force-reset
 pnpm prisma migrate deploy
-
+pnpm ts-node src/users/crearAdmin.ts
 # Iniciar la app NestJS
 pnpm start:prod
