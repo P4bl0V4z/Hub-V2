@@ -56,7 +56,8 @@ RUN pnpm prisma generate
 
 # Compilar el proyecto
 #RUN pnpm run build
-RUN tsc -p tsconfig.build.json && echo "✅ tsc ok"
+RUN pnpm exec tsc -p tsconfig.build.json && echo "✅ tsc ok"
+
 RUN nest build && echo "✅ nest ok"
 
 
