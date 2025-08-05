@@ -53,6 +53,7 @@ COPY backend/ ./
 
 # Generar Prisma Client con binarios específicos
 RUN pnpm prisma generate
+RUN echo "📂 Verificando Prisma Client generado:" && ls -lah node_modules/.pnpm/@prisma+client*/node_modules/@prisma/client
 
 # Compilar el proyecto
 #RUN pnpm run build
