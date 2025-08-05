@@ -55,7 +55,10 @@ COPY backend/ ./
 RUN pnpm prisma generate
 
 # Compilar el proyecto
-RUN pnpm run build
+#RUN pnpm run build
+RUN tsc -p tsconfig.build.json && echo "✅ tsc ok"
+RUN nest build && echo "✅ nest ok"
+
 
 # Etapa final
 FROM node:20-slim
