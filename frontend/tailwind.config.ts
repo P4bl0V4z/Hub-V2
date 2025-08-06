@@ -18,6 +18,14 @@ export default {
 			}
 		},
 		extend: {
+
+			fontFamily: {
+				'sans': ['"Asap Expanded"', 'sans-serif'],
+				 code: ["'Source Code Pro'", "monospace"],
+				 asap: ["'Asap Expanded'", "sans-serif"],
+        		
+    	  	},
+
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

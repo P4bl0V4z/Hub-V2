@@ -1,4 +1,5 @@
 services:
+<<<<<<< HEAD
 #  frontend:
  #   build: ./frontend
   #  ports:
@@ -11,6 +12,8 @@ services:
    # depends_on:
    #   - db
    #   - redis
+=======
+>>>>>>> origin/Joaquin
 
   db:
     image: postgres:16

@@ -3,6 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Asap Expanded';
+  src: url('/fonts/AsapExpanded-Bold.woff2') format('woff2'); /* Ajusta ruta y formato según tu archivo */
+  font-weight: 600;
+  font-style: normal;
+}
+
 @layer base {
   :root {
     --background: 210 40% 98%;
@@ -91,6 +98,6 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
 }

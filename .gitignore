@@ -4,3 +4,4 @@ dist/
 frontend/.env
 backend/.env
 frontend/google.txt
+pnpm-locl.yml
