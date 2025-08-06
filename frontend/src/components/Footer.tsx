@@ -37,10 +37,10 @@ export default function Footer() {
             {/* Íconos sociales con enlaces específicos */}
             <div className="flex gap-3 mt-2 flex-wrap">
               {/* Reemplaza los href con las URLs reales de tus redes */}
-              <a href="mailto:contacto@beloop.io" target="_blank" rel="noopener noreferrer">
+              <a href="gabriel@beloop.io" target="_blank" rel="noopener noreferrer">
                 <img src={mailIcon} alt="Email" className="h-5" />
               </a>
-              <a href="https://wa.me/56912345678" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/+56996917263" target="_blank" rel="noopener noreferrer">
                 <img src={whatsappIcon} alt="WhatsApp" className="h-5" />
               </a>
               <a href="https://www.linkedin.com/company/beloop" target="_blank" rel="noopener noreferrer">
