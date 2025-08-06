@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 # Copiamos el script de arranque vacío (o lo generás dentro del contenedor)
-COPY backend/start.sh .
+COPY backend/ .
 RUN chmod +x start.sh
 
 # Este script puede hacer echo "Contenedor listo" y nada más
