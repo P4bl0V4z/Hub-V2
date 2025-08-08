@@ -94,18 +94,18 @@ ENV FRONTEND_URL=$FRONTEND_URL
 ENV PORT=$PORT
 ENV MAIL_FROM=$MAIL_FROM
 
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-#COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/* ./
+#COPY --from=builder /app/package.json ./
+#COPY --from=builder /app/pnpm-lock.yaml ./
+#COPY --from=builder /app/node_modules ./node_modules
+#COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+#COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+##COPY --from=builder /app/dist ./dist
+#COPY --from=builder /app/prisma ./prisma
+COPY  backend/ ./
 
 EXPOSE 3001
 
-COPY backend/start.sh .
+#COPY backend/start.sh .
 RUN chmod +x start.sh
 
 CMD ["./start.sh"]
