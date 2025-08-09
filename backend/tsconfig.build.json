@@ -1,13 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
     "noEmit": false,
     "declaration": false,
-    "emitDeclarationOnly": false,
-    "sourceMap": true,
-    "module": "CommonJS"
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "test", "dist", "**/*.spec.ts"]
+    "emitDeclarationOnly": false
+  }
 }
