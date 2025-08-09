@@ -103,7 +103,7 @@ ENV MAIL_FROM=$MAIL_FROM
 #COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/ ./
 COPY  backend/ ./
-npm install -g npm@11.5.2
+RUN npm install -g npm@11.5.2
 EXPOSE 3001
 
 #COPY backend/start.sh .
