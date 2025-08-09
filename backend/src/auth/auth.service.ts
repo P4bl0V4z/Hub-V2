@@ -30,14 +30,17 @@ export class AuthService {
     }
     const hashed = await bcrypt.hash(data.password, 10);
 
-    const token = this.jwtService.sign(
+    // CAMBIOS EN GENERACION DE TOKEN
+    const token = await this.jwtService.signAsync(
       { email: data.email },
       {
-        secret: this.config.get('JWT_SECRET'),
+        secret: this.config.get<string>('JWT_SECRET'),
+        algorithm: 'HS256',
         expiresIn: '1d',
       },
     );
 
+    // Guarda el token tal cual si quieres (mejoraré esto más abajo)
     await this.prisma.usuario.create({
       data: {
         email: data.email,
@@ -51,28 +54,38 @@ export class AuthService {
     });
 
     await this.mailer.sendVerificationEmail(data.email, token);
-
     return { message: 'Usuario creado. Revisa tu email para activarlo.' };
   }
 
+  // CAMBIOS EN VERIFICACION DE CUENTA
   async verifyEmail(token: string) {
+    if (!token) throw new BadRequestException('Token requerido');
+
     try {
-      const decoded = this.jwtService.verify(token, {
-        secret: this.config.get('JWT_SECRET'),
+      const decoded = await this.jwtService.verifyAsync<{ email: string; iat: number; exp: number }>(token, {
+        secret: this.config.get<string>('JWT_SECRET'),
+        algorithms: ['HS256'],
+        clockTolerance: 300,
       });
 
-      if (typeof decoded !== 'object' || !('email' in decoded)) {
-        throw new Error();
+      if (!decoded?.email) throw new BadRequestException('Token inválido');
+
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { email: decoded.email },
+        select: { email: true, activo: true, tokenVerificacion: true },
+      });
+
+      if (!usuario) throw new BadRequestException('Token inválido');
+      if (usuario.activo) {
+        return { message: 'Cuenta ya verificada' };
       }
 
-      const email = (decoded as any).email as string;
-
-      const usuario = await this.prisma.usuario.findUnique({ where: { email } });
-
-      if (!usuario || usuario.activo) throw new Error();
+      if (!usuario.tokenVerificacion || usuario.tokenVerificacion !== token) {
+        throw new BadRequestException('Token inválido o expirado');
+      }
 
       await this.prisma.usuario.update({
-        where: { email },
+        where: { email: decoded.email },
         data: {
           activo: true,
           verificadoEn: new Date(),
@@ -81,7 +94,7 @@ export class AuthService {
       });
 
       return { message: 'Cuenta verificada correctamente' };
-    } catch {
+    } catch (e) {
       throw new BadRequestException('Token inválido o expirado');
     }
   }
