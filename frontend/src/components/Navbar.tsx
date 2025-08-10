@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/auth/AuthContext';
+import { useAuth } from './auth/AuthContext'; // Adjust the import path as necessary
 import logo from '../assets/landing/logo_beloop.svg';
 import orn from '../assets/landing/orn.svg';
 import glass from '../assets/landing/glass.svg';

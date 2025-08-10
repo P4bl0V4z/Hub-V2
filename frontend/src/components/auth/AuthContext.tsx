@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(raw);
         if (parsed?.user?.email) setUser(parsed.user as AuthUser);
       }
-    } catch {}
+    } catch { /* empty */ }
   }, []);
 
   const logout = () => {
