@@ -13,7 +13,7 @@ export async function login(email: string, password: string) {
     throw new Error(error.message || "Error en login");
   }
 
-  return await res.json(); // Contiene el token y más info
+  return await res.json(); 
 }
 
 export async function register(data: { email: string; nombre: string; password: string }) {

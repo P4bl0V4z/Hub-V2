@@ -1,11 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
@@ -14,62 +8,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// aca comienza todo
-
-
 model Usuario {
-  id                Int                 @id @default(autoincrement())
-  email             String              @unique
-  password          String
+  id                Int              @id @default(autoincrement())
+  email             String           @unique
+  password          String?
   nombre            String
-  creadoEn          DateTime            @default(now()) @map("creado_en")
-  actualizadoEn     DateTime            @updatedAt @map("actualizado_en")
-  tokenVerificacion String?            @map("token_verificacion")
-  activo            Boolean             @default(false)
-  verificadoEn      DateTime?           @map("verificado_en")
-  tipoUsuario       String?             @map("tipo_usuario") // opcional, para flags globales
-
+  creadoEn          DateTime         @default(now()) @map("creado_en")
+  actualizadoEn     DateTime         @updatedAt @map("actualizado_en")
+  tokenVerificacion String?          @map("token_verificacion")
+  activo            Boolean          @default(false)
+  verificadoEn      DateTime?        @map("verificado_en")
+  tipoUsuario       String?          @map("tipo_usuario")
+  googleId          String?    @unique @map("google_id")
+  msId              String?    @unique @map("ms_id")
+  avatarUrl         String?    @map("avatar_url")
+  lastLoginAt       DateTime?  @map("last_login_at")
   empresas          UsuarioEmpresa[]
 }
 
 model Empresa {
-  id                Int                 @id @default(autoincrement())
-  nombre            String
-  creadoEn          DateTime            @default(now()) @map("creado_en")
-  esEmpresaMaestra  Boolean             @default(false)
-
-  usuarios          UsuarioEmpresa[]
+  id               Int              @id @default(autoincrement())
+  nombre           String
+  creadoEn         DateTime         @default(now()) @map("creado_en")
+  esEmpresaMaestra Boolean          @default(false)
+  usuarios         UsuarioEmpresa[]
 }
 
 model Rol {
-  id                  Int           @id @default(autoincrement())
-  nombre              String        @unique
-  descripcion         String?
-  soloEmpresaMaestra  Boolean       @default(false)
-
-  usuarios            UsuarioRol[]
+  id                 Int          @id @default(autoincrement())
+  nombre             String       @unique
+  descripcion        String?
+  soloEmpresaMaestra Boolean      @default(false)
+  usuarios           UsuarioRol[]
 }
 
 model UsuarioEmpresa {
-  id         Int            @id @default(autoincrement())
-  usuarioId  Int            @map("usuario_id")
-  empresaId  Int            @map("empresa_id")
-
-  usuario    Usuario        @relation(fields: [usuarioId], references: [id])
-  empresa    Empresa        @relation(fields: [empresaId], references: [id])
-
-  roles      UsuarioRol[]
+  id        Int          @id @default(autoincrement())
+  usuarioId Int          @map("usuario_id")
+  empresaId Int          @map("empresa_id")
+  empresa   Empresa      @relation(fields: [empresaId], references: [id])
+  usuario   Usuario      @relation(fields: [usuarioId], references: [id])
+  roles     UsuarioRol[]
 
   @@unique([usuarioId, empresaId])
 }
 
 model UsuarioRol {
-  id                Int             @id @default(autoincrement())
-  usuarioEmpresaId  Int             @map("usuario_empresa_id")
-  rolId             Int             @map("rol_id")
-
-  usuarioEmpresa    UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
-  rol               Rol            @relation(fields: [rolId], references: [id])
+  id               Int            @id @default(autoincrement())
+  usuarioEmpresaId Int            @map("usuario_empresa_id")
+  rolId            Int            @map("rol_id")
+  rol              Rol            @relation(fields: [rolId], references: [id])
+  usuarioEmpresa   UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
 
   @@unique([usuarioEmpresaId, rolId])
 }

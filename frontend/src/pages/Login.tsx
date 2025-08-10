@@ -11,13 +11,9 @@ const Login = () => {
   const { toast } = useToast();
   const location = useLocation();
 
-  // Check authentication status on mount
   useEffect(() => {
-    // Get the 'logout' parameter from URL, if it exists
     const params = new URLSearchParams(location.search);
     const isLogout = params.get('logout') === 'true';
-
-    // Only redirect if the user is authenticated AND not explicitly logging out
     const isAuthenticated = localStorage.getItem("beloop_authenticated") === "true";
     if (isAuthenticated && !isLogout) {
       const userRole = localStorage.getItem("beloop_user_role") || "user";
@@ -29,7 +25,6 @@ const Login = () => {
     }
   }, [navigate, location]);
 
-  // Función para iniciar sesión directamente como administrador
   const handleAdminAccess = () => {
     localStorage.setItem("beloop_user_role", "admin");
     localStorage.setItem("beloop_authenticated", "true");
