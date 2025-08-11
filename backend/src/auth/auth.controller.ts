@@ -1,16 +1,12 @@
-import {
-  Body, Controller, Get, Post, Query, Req, Res, UseGuards,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import {Body, Controller, Get, Post, Query, Req, Res, UseGuards} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
-import { randomBytes } from 'crypto';
 
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import * as passport from 'passport';
+import { GoogleAuthGuard } from './guards/google.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -20,87 +16,66 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  // ---- LOCAL 
-  @Post('register') register(@Body() data: RegisterDto) {return this.authService.register(data); }
-  @Get('verify-email') verifyEmail(@Query('token') token: string) {return this.authService.verifyEmail(token); }
-  @Post('login') login(@Body() dto: LoginDto) {return this.authService.login(dto.email, dto.password); }
+  // ---- LOCAL
+  @Post('register')
+  register(@Body() data: RegisterDto) {
+    return this.authService.register(data);
+  }
 
-  // ===== OAUTH SEGURO =====
+  @Get('verify-email')
+  verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
 
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto.email, dto.password);
+  }
+
+  // ===== OAUTH: GOOGLE =====
+  // Inicio: el GoogleAuthGuard genera "state" firmado y redirige a Google
   @Get('google')
-  googleStart(@Req() req: Request, @Res() res: Response) {
-    const state = this.jwt.sign(
-      { n: randomBytes(16).toString('hex') },
-      { secret: this.config.get<string>('OAUTH_STATE_SECRET')!, expiresIn: '10m' },
-    );
-    return passport.authenticate('google', {
-      scope: ['openid', 'email', 'profile'],
-      state,
-    })(req, res);
+  @UseGuards(GoogleAuthGuard)
+  googleStart() {
+    // vacío a propósito
   }
-  // Google callback
+
+  // Callback de Google
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   googleCb(@Req() req: Request, @Res() res: Response) {
+    // Verificación (anti-CSRF)
     const { state } = req.query as { state?: string };
     if (!state) return res.status(400).send('Missing state');
+
     try {
-      this.jwt.verify(state, { secret: this.config.get<string>('OAUTH_STATE_SECRET')! });
+      this.jwt.verify(state, {
+        secret: this.config.get<string>('OAUTH_STATE_SECRET')!,
+      });
     } catch {
       return res.status(400).send('Invalid state');
     }
 
+    // Usuario autenticado por GoogleStrategy.validate(...)
     const u = (req as any).user;
-    const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600); // sec
-    const token = this.jwt.sign({ sub: u.id, email: u.email, tipoUsuario: u.tipoUsuario });
 
-    res.cookie('access_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: accessTtl * 1000,
-      domain: 'plataforma.beloop.io',
-      path: '/',
-    });
-    return res.redirect(303, `${this.config.get('FRONTEND_URL')}/oauth-callback`);
-  }
-
-  // Microsoft
-  @Get('microsoft')
-  msStart(@Req() req: Request, @Res() res: Response) {
-    const state = this.jwt.sign(
-      { n: randomBytes(16).toString('hex') },
-      { secret: this.config.get<string>('OAUTH_STATE_SECRET')!, expiresIn: '10m' },
+    const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600); // segundos
+    const token = this.jwt.sign(
+      { sub: u.id, email: u.email, tipoUsuario: u.tipoUsuario },
+      { expiresIn: accessTtl } // evita tokens sin expiración
     );
-    return passport.authenticate('microsoft', {
-      scope: ['openid', 'email', 'profile'],
-      state,
-    })(req, res);
-  }
 
-  @Get('microsoft/callback')
-  @UseGuards(AuthGuard('microsoft'))
-  msCb(@Req() req: Request, @Res() res: Response) {
-    const { state } = req.query as { state?: string };
-    if (!state) return res.status(400).send('Missing state');
-    try {
-      this.jwt.verify(state, { secret: this.config.get<string>('OAUTH_STATE_SECRET')! });
-    } catch {
-      return res.status(400).send('Invalid state');
-    }
-
-    const u = (req as any).user;
-    const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
-    const token = this.jwt.sign({ sub: u.id, email: u.email, tipoUsuario: u.tipoUsuario });
-
+    // Cookie de sesión (ajusta SameSite según dominios)
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',
+      sameSite: 'lax', // 🔁 Si API y Frontend están en dominios distintos, usa 'none'
       maxAge: accessTtl * 1000,
-      domain: 'plataforma.beloop.io',
+      domain: 'plataforma.beloop.io', // asegúrate que cubra tus subdominios reales
       path: '/',
     });
-    return res.redirect(303, `${this.config.get('FRONTEND_URL')}/oauth-callback`);
+
+    const frontend = this.config.get('FRONTEND_URL');
+    return res.redirect(303, `${frontend}/oauth-callback`);
   }
 }

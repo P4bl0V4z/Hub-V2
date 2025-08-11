@@ -15,6 +15,8 @@ interface LoginFormProps {
   onAdminAccess: () => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL; // https://plataforma.beloop.io/api, es la misma url que el frontend mas api y el proxy reverso lo redirige a la api
+
 const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +25,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!email || !password) {
       toast({
         title: "Error de ingreso",
@@ -32,7 +33,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       });
       return;
     }
-
     try {
       const data = await login(email, password);
       localStorage.setItem("beloop_token", data.token);
@@ -49,6 +49,20 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
         variant: "destructive",
       });
     }
+  };
+
+
+  const handleGoogleLogin = () => {
+    if (!API_URL) {
+      console.error("VITE_API_URL no está definido");
+      toast({
+        title: "Configuración faltante",
+        description: "VITE_API_URL no está configurado.",
+        variant: "destructive",
+      });
+      return;
+    }
+    window.location.href = `${API_URL}/auth/google`;
   };
 
   return (
@@ -96,14 +110,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
         <div className="space-y-4">
           <p className="text-xs text-center text-muted-foreground">o ingresar con</p>
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="w-full">
+            {/* ✅ Google */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+              aria-label="Ingresar con Google"
+            >
               <BeLoopIcon name="gmail" size={16} className="mr-2" />
-              Gmail
+              Google
             </Button>
-            <Button variant="outline" className="w-full">
+
+            {/* Microsoft (deshabilitado por ahora)
+            <Button variant="outline" className="w-full" disabled>
               <BeLoopIcon name="microsoft" size={16} className="mr-2" />
               Microsoft
             </Button>
+            */}
           </div>
         </div>
       </CardContent>
