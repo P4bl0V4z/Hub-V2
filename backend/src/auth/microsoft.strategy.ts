@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, IProfile } from 'passport-microsoft';
+import { Strategy } from 'passport-microsoft';
+import type {Profile as PassportProfile} from 'passport';
+type Profile = PassportProfile;
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,7 +18,7 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, 'microsoft') {
     });
   }
 
-  async validate(_at: string, _rt: string, profile: IProfile, done: Function) {
+  async validate(_at: string, _rt: string, profile: Profile, done: Function) {
     const msId = profile.id;
     const email = profile.emails?.[0]?.value?.toLowerCase();
     const nombre = profile.displayName;
