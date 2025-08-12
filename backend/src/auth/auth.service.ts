@@ -9,7 +9,6 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../mailer/mailer.service';
-import { stringify } from 'querystring';
 
 @Injectable()
 export class AuthService {
@@ -28,7 +27,17 @@ export class AuthService {
     if (existing) {
       throw new BadRequestException('Email ya registrado');
     }
-    const hashed = await bcrypt.hash(data.password, 10);
+
+    // 🔧 USAR PEPPER Y SALT ROUNDS CONSISTENTES
+    const pepper = this.config.get<string>('PASSWORD_PEPPER');
+    const saltRounds = Number(this.config.get<string>('BCRYPT_SALT_ROUNDS') ?? 12);
+    
+    if (!pepper) {
+      throw new Error('PASSWORD_PEPPER no configurado');
+    }
+
+    const payload = `${data.password}${pepper}`;
+    const hashed = await bcrypt.hash(payload, saltRounds);
 
     // CAMBIOS EN GENERACION DE TOKEN
     const token = await this.jwtService.signAsync(
@@ -40,7 +49,6 @@ export class AuthService {
       },
     );
 
-    // Guarda el token tal cual si quieres (mejoraré esto más abajo)
     await this.prisma.usuario.create({
       data: {
         email: data.email,
@@ -54,6 +62,7 @@ export class AuthService {
     });
 
     await this.mailer.sendVerificationEmail(data.email, token);
+
     return { message: 'Usuario creado. Revisa tu email para activarlo.' };
   }
 
@@ -76,6 +85,7 @@ export class AuthService {
       });
 
       if (!usuario) throw new BadRequestException('Token inválido');
+
       if (usuario.activo) {
         return { message: 'Cuenta ya verificada' };
       }
@@ -100,57 +110,64 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-  const usuario = await this.prisma.usuario.findUnique({
-    where: { email },
-    include: {
-      empresas: {
-        include: {
-          empresa: true,
-          roles: {
-            include: {
-              rol: true,
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email },
+      include: {
+        empresas: {
+          include: {
+            empresa: true,
+            roles: {
+              include: {
+                rol: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!usuario || !usuario.activo || !usuario.password) {
-    throw new UnauthorizedException(
-      'Credenciales inválidas o usuario no verificado',
-    );
+    if (!usuario || !usuario.activo || !usuario.password) {
+      throw new UnauthorizedException(
+        'Credenciales inválidas o usuario no verificado',
+      );
+    }
+
+    if (usuario.tokenVerificacion) {
+      throw new UnauthorizedException('Cuenta no verificada');
+    }
+
+    // 🔧 USAR PEPPER COMO EN EL SCRIPT DE CREACIÓN
+    const pepper = this.config.get<string>('PASSWORD_PEPPER');
+    if (!pepper) {
+      throw new Error('PASSWORD_PEPPER no configurado');
+    }
+    
+    const payload = `${password}${pepper}`;
+    const passwordOk = await bcrypt.compare(payload, usuario.password);
+
+    if (!passwordOk) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const payloadJWT = {
+      sub: usuario.id,
+      email: usuario.email,
+      tipoUsuario: usuario.tipoUsuario,
+    };
+
+    const token = this.jwtService.sign(payloadJWT);
+
+    const empresas = usuario.empresas.map((ue) => ({
+      id: ue.empresa.id,
+      nombre: ue.empresa.nombre,
+      roles: ue.roles.map((r) => r.rol.nombre),
+    }));
+
+    return {
+      token,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      empresas,
+    };
   }
-
-  if (usuario.tokenVerificacion) {
-    throw new UnauthorizedException('Cuenta no verificada');
-  }
-
-  const passwordOk = await bcrypt.compare(password, usuario.password);
-  if (!passwordOk) {
-    throw new UnauthorizedException('Credenciales inválidas');
-  }
-
-  const payload = {
-    sub: usuario.id,
-    email: usuario.email,
-    tipoUsuario: usuario.tipoUsuario,
-  };
-
-  const token = this.jwtService.sign(payload);
-
-  const empresas = usuario.empresas.map((ue) => ({
-    id: ue.empresa.id,
-    nombre: ue.empresa.nombre,
-    roles: ue.roles.map((r) => r.rol.nombre),
-  }));
-
-  return {
-    token,
-    nombre: usuario.nombre,
-    email: usuario.email,
-    empresas,
-  };
-  }
-
 }
