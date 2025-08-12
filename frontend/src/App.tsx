@@ -36,6 +36,8 @@ import AdminSupport from "./pages/admin/AdminSupport";
 import AdminActivity from "./pages/admin/AdminActivity";
 import Verify from "./pages/Verify";
 import HomePublic from "./pages/HomePublic";
+import { bootstrapSession, type SessionUser } from "@/lib/auth";
+
 
 
 const App = () => {
@@ -70,6 +72,23 @@ const App = () => {
       setUserRole(role);
     };
   }, []);
+
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const user: SessionUser | null = await bootstrapSession();
+      if (user) {
+        setIsAuthenticated(true);
+        setUserRole(user.tipoUsuario || "user");
+      } else {
+        setIsAuthenticated(false);
+        setUserRole("user");
+      }
+      setReady(true);
+    })();
+  }, []);
+
 
   const [currentPath, setCurrentPath] = useState("");
   

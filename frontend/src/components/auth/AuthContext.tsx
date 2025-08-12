@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { fetchSession, logout as apiLogout } from '@/lib/auth';
 
 type AuthUser = {
   id: string;
@@ -9,7 +10,7 @@ type AuthUser = {
 type AuthContextType = {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,17 +19,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('auth');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.user?.email) setUser(parsed.user as AuthUser);
+    (async () => {
+      const u = await fetchSession();
+      if (u) {
+        setUser({ id: u.id, email: u.email, name: null });
+      } else {
+        setUser(null);
       }
-    } catch { /* empty */ }
+    })();
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'beloop_authenticated' && e.newValue !== 'true') {
+        setUser(null);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem('auth');
+  const logout = async () => {
+    await apiLogout();
+    localStorage.removeItem('beloop_authenticated');
+    localStorage.removeItem('beloop_user_name');
+    localStorage.removeItem('beloop_user_role');
     setUser(null);
   };
 

@@ -9,14 +9,32 @@ import { Mail, Lock, ArrowRight, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import HelpTooltip from "@/components/HelpTooltip";
 import BeLoopIcon from "@/components/BeLoopIcons";
-import { login } from "@/lib/auth";
+import { login, bootstrapSession } from "@/lib/auth";
 
 interface LoginFormProps {
   onAdminAccess: () => void;
 }
 
+
 const API_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/+$/, ''); // https://plataforma.beloop.io/api, es la misma url que el frontend mas api y el proxy reverso lo redirige a la api
 const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+import { login, bootstrapSession } from "@/lib/auth";
+
+// ...
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  // ...validaciones
+  try {
+    const data = await login(email, password); // backend setea cookie
+    await bootstrapSession();                  // sincroniza flags en LS
+    if (window.beLoopLogin) (window as any).beLoopLogin();
+    toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
+    navigate(data?.rol === "admin" ? "/admin" : "/");
+  } catch (err: any) {
+    toast({ title: "Error de autenticación", description: err.message, variant: "destructive" });
+  }
+};
 
 const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
   const [email, setEmail] = useState("");
