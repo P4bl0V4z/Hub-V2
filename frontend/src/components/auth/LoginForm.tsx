@@ -15,7 +15,8 @@ interface LoginFormProps {
   onAdminAccess: () => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL; // https://plataforma.beloop.io/api, es la misma url que el frontend mas api y el proxy reverso lo redirige a la api
+const API_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/+$/, ''); // https://plataforma.beloop.io/api, es la misma url que el frontend mas api y el proxy reverso lo redirige a la api
+const [loadingGoogle, setLoadingGoogle] = useState(false);
 
 const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
   const [email, setEmail] = useState("");
@@ -62,7 +63,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       });
       return;
     }
-    window.location.href = `${API_URL}/auth/google`;
+
+    const from =
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+
+    setLoadingGoogle(true); 
+    window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from || '/')}`;
   };
 
   return (
@@ -117,6 +125,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
               className="w-full"
               onClick={handleGoogleLogin}
               aria-label="Ingresar con Google"
+              disabled={loadingGoogle}
             >
               <BeLoopIcon name="gmail" size={16} className="mr-2" />
               Google

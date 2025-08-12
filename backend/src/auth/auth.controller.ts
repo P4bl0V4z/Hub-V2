@@ -39,43 +39,42 @@ export class AuthController {
   googleStart() {
     // vacío a propósito
   }
-
   // Callback de Google
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   googleCb(@Req() req: Request, @Res() res: Response) {
-    // Verificación (anti-CSRF)
     const { state } = req.query as { state?: string };
     if (!state) return res.status(400).send('Missing state');
-
+    // Verifica el "state" firmado
+    let r = '/';
     try {
-      this.jwt.verify(state, {
+      const decoded = this.jwt.verify(state, {
         secret: this.config.get<string>('OAUTH_STATE_SECRET')!,
-      });
+      }) as { r?: string };
+      if (decoded?.r && typeof decoded.r === 'string') r = decoded.r;
     } catch {
       return res.status(400).send('Invalid state');
     }
 
-    // Usuario autenticado por GoogleStrategy.validate(...)
     const u = (req as any).user;
 
-    const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600); // segundos
+    const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
     const token = this.jwt.sign(
       { sub: u.id, email: u.email, tipoUsuario: u.tipoUsuario },
-      { expiresIn: accessTtl } // evita tokens sin expiración
+      { expiresIn: accessTtl }
     );
 
-    // Cookie de sesión (ajusta SameSite según dominios)
+    // cookie para todos los subdominios de beloop.io
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax', // 🔁 Si API y Frontend están en dominios distintos, usa 'none'
+      sameSite: 'lax',
       maxAge: accessTtl * 1000,
-      domain: 'plataforma.beloop.io', // asegúrate que cubra tus subdominios reales
+      domain: '.beloop.io',
       path: '/',
     });
 
-    const frontend = this.config.get('FRONTEND_URL');
-    return res.redirect(303, `${frontend}/oauth-callback`);
+    const frontend = this.config.get<string>('FRONTEND_URL')!;
+    return res.redirect(303, `${frontend}${r || '/'}`);
   }
 }

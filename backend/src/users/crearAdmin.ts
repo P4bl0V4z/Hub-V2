@@ -1,5 +1,7 @@
+// CREACION DE USUARIO ADMINISTRADOR, EMPRESA BELOOP Y ROL ADMIN
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -9,27 +11,27 @@ async function main() {
   const nombre = 'admin';
   const nombreEmpresaMaestra = 'BeLoop';
 
+  const pepper = process.env.PASSWORD_PEPPER;
+  if (!pepper) {
+    throw new Error('Falta la variable de entorno PASSWORD_PEPPER');
+  }
+  const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
+  if (!Number.isInteger(saltRounds) || saltRounds < 10 || saltRounds > 15) {
+    throw new Error('BCRYPT_SALT_ROUNDS debe ser un entero razonable (10-15)');
+  }
+
   let empresa = await prisma.empresa.findFirst({
-    where: {
-      nombre: nombreEmpresaMaestra,
-      esEmpresaMaestra: true,
-    },
+    where: { nombre: nombreEmpresaMaestra, esEmpresaMaestra: true },
   });
 
   if (!empresa) {
     empresa = await prisma.empresa.create({
-      data: {
-        nombre: nombreEmpresaMaestra,
-        esEmpresaMaestra: true,
-      },
+      data: { nombre: nombreEmpresaMaestra, esEmpresaMaestra: true },
     });
     console.log('Empresa maestra creada:', empresa.nombre);
   }
 
-  let rolAdmin = await prisma.rol.findUnique({
-    where: { nombre: 'admin' },
-  });
-
+  let rolAdmin = await prisma.rol.findUnique({ where: { nombre: 'admin' } });
   if (!rolAdmin) {
     rolAdmin = await prisma.rol.create({
       data: {
@@ -40,41 +42,55 @@ async function main() {
     });
     console.log('Rol admin creado.');
   }
+  let usuario = await prisma.usuario.findUnique({ where: { email } });
+  if (!usuario) {
+    const payload = `${password}${pepper}`;
+    const hashedPassword = await bcrypt.hash(payload, saltRounds);
 
-  let usuario = await prisma.usuario.findUnique({
-    where: { email },
-  });
-
-  if (usuario) {
+    usuario = await prisma.usuario.create({
+      data: {
+        email,
+        password: hashedPassword,
+        nombre,
+        activo: true,
+      },
+    });
+    console.log('Usuario admin creado.');
+  } else {
     console.log('El usuario admin ya existe.');
-    return;
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  usuario = await prisma.usuario.create({
-    data: {
-      email,
-      password: hashedPassword,
-      nombre,
-      activo: true,
+  // 4) Vinculaciones (idempotentes)
+  let usuarioEmpresa = await prisma.usuarioEmpresa.findFirst({
+    where: { usuarioId: usuario.id, empresaId: empresa.id },
+  });
+  if (!usuarioEmpresa) {
+    usuarioEmpresa = await prisma.usuarioEmpresa.create({
+      data: {
+        usuario: { connect: { id: usuario.id } },
+        empresa: { connect: { id: empresa.id } },
+      },
+    });
+    console.log('Vinculación usuario-empresa creada.');
+  }
+
+  const usuarioRolExistente = await prisma.usuarioRol.findFirst({
+    where: {
+      usuarioEmpresaId: usuarioEmpresa.id,
+      rolId: rolAdmin.id,
     },
   });
+  if (!usuarioRolExistente) {
+    await prisma.usuarioRol.create({
+      data: {
+        usuarioEmpresa: { connect: { id: usuarioEmpresa.id } },
+        rol: { connect: { id: rolAdmin.id } },
+      },
+    });
+    console.log('Rol admin asignado al usuario.');
+  }
 
-  const usuarioEmpresa = await prisma.usuarioEmpresa.create({
-    data: {
-      usuario: { connect: { id: usuario.id } },
-      empresa: { connect: { id: empresa.id } },
-    },
-  });
-
-  await prisma.usuarioRol.create({
-    data: {
-      usuarioEmpresa: { connect: { id: usuarioEmpresa.id } },
-      rol: { connect: { id: rolAdmin.id } },
-    },
-  });
-
-  console.log('Usuario admin creado correctamente.');
+  console.log('Proceso completado.');
 }
 
 main()
@@ -82,6 +98,6 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => {
-    prisma.$disconnect();
+  .finally(async () => {
+    await prisma.$disconnect();
   });
