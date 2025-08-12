@@ -20,7 +20,8 @@ import Modules from "./pages/Modules";
 import Academy from "./pages/Academy";
 import Compliance from "./pages/Compliance";
 import Register from "./pages/Register";
-import DiagnosticTest from "./pages/DiagnosticTest";
+import DiagnosticTest from "./pages/diagnostic/DiagnosticTest";
+import DiagnosticAntecedentes from "./pages/diagnostic/DiagnosticAntecedentes";
 import GlobalSearch from "./components/GlobalSearch";
 import ChatAssistant from "./components/ChatAssistant";
 import VideoTutorialButton from "./components/VideoTutorialButton";
@@ -162,9 +163,14 @@ const App = () => {
               <Route path="/compliance" element={
                 isAuthenticated ? <Compliance /> : <Navigate to="/login" replace />
               } />
+
               <Route path="/diagnostic-test" element={
                 isAuthenticated ? <DiagnosticTest /> : <Navigate to="/login" replace />
               } />
+              <Route path="/diagnostic-test/antecedentes" element={
+                isAuthenticated ? <DiagnosticAntecedentes /> : <Navigate to="/login" replace />
+              } />
+
               <Route path="/registro" element={
                 isAuthenticated ? 
                   (userRole === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/" replace />)
