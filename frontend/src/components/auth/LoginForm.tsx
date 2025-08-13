@@ -53,21 +53,32 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    if (!API_URL) {
-      console.error("VITE_API_URL no está definido");
-      toast({
-        title: "Configuración faltante",
-        description: "VITE_API_URL no está configurado.",
-        variant: "destructive",
-      });
-      return;
-    }
+const handleGoogleLogin = () => {
+  if (!API_URL) {
+    console.error("VITE_API_URL no está definido");
+    toast({
+      title: "Configuración faltante",
+      description: "VITE_API_URL no está configurado.",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    const from = window.location.pathname + window.location.search + window.location.hash;
-    setLoadingGoogle(true);
-    window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from || "/")}`;
-  };
+  const url = new URL(window.location.href);
+
+  let from: string;
+  if (url.pathname.startsWith("/login")) {
+    const redirect = url.searchParams.get("redirect");
+    from = redirect && redirect.startsWith("/") ? redirect : "/";
+  } else {
+    from = url.pathname + url.search + url.hash;
+    if (!from || !from.startsWith("/")) from = "/";
+  }
+
+  setLoadingGoogle(true);
+  window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from)}`;
+};
+
 
   return (
     <>

@@ -31,8 +31,14 @@ export class AuthController {
       throw new UnauthorizedException();
     }
   }
-
   // ---- LOCAL
+  @Post('logout')
+  logout(@Res() res: Response) {
+    res.clearCookie('access_token', { path: '/' });
+    res.clearCookie('access_token', { path: '/', domain: '.beloop.io' });
+    return res.status(204).send();
+  }
+
   @Post('register')
   register(@Body() data: RegisterDto) {
     return this.authService.register(data);
@@ -44,8 +50,17 @@ export class AuthController {
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+  async login(@Body() dto: LoginDto, @Res() res: Response) {
+    const data = await this.authService.login(dto.email, dto.password);
+    const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
+    res.cookie('access_token', data.token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: accessTtl * 1000,
+    });
+    return res.status(200).json({ ok: true, nombre: data.nombre, rol: data.rol });
   }
 
   // ===== OAUTH: GOOGLE =====
