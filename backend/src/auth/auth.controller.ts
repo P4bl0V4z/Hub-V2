@@ -2,11 +2,11 @@ import {Body, Controller, Get, Post, Query, Req, Res, UseGuards} from '@nestjs/c
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
-
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthGuard } from './guards/google.guard';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Controller('auth')
 export class AuthController {
@@ -15,6 +15,22 @@ export class AuthController {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
+
+  @Get('me')
+  async me(@Req() req: Request) {
+    const raw = req.cookies?.access_token;
+    if (!raw) throw new UnauthorizedException();
+
+    try {
+      // Verifica el token JWT
+      const payload = await this.jwt.verifyAsync(raw, {
+        secret: this.config.get<string>('JWT_SECRET'),
+      });
+      return { id: payload.sub, email: payload.email, tipoUsuario: payload.tipoUsuario };
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
 
   // ---- LOCAL
   @Post('register')
