@@ -60,7 +60,7 @@ export class AuthController {
       path: '/',
       maxAge: accessTtl * 1000,
     });
-    return res.status(200).json({ ok: true, nombre: data.nombre, rol: data.rol });
+    return res.status(200).json({ ok: true, nombre: data.nombre});
   }
 
   // ===== OAUTH: GOOGLE =====
