@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,7 +9,6 @@ async function bootstrap() {
   // Prefijo global para todas las rutas -> /api
   app.setGlobalPrefix('api');
   app.use(cookieParser());
-
   app.enableCors({
     origin: ['http://localhost:8080', 'https://plataforma.beloop.io'],
     credentials: true,
