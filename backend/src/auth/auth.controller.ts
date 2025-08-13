@@ -49,7 +49,6 @@ export class AuthController {
   }
 
   // ===== OAUTH: GOOGLE =====
-  // Inicio: el GoogleAuthGuard genera "state" firmado y redirige a Google
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   googleStart() {
