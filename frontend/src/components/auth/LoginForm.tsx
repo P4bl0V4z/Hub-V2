@@ -15,30 +15,12 @@ interface LoginFormProps {
   onAdminAccess: () => void;
 }
 
-
-const API_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/+$/, ''); // https://plataforma.beloop.io/api, es la misma url que el frontend mas api y el proxy reverso lo redirige a la api
-const [loadingGoogle, setLoadingGoogle] = useState(false);
-
-import { login, bootstrapSession } from "@/lib/auth";
-
-// ...
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  // ...validaciones
-  try {
-    const data = await login(email, password); // backend setea cookie
-    await bootstrapSession();                  // sincroniza flags en LS
-    if (window.beLoopLogin) (window as any).beLoopLogin();
-    toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
-    navigate(data?.rol === "admin" ? "/admin" : "/");
-  } catch (err: any) {
-    toast({ title: "Error de autenticación", description: err.message, variant: "destructive" });
-  }
-};
+const API_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/+$/, "");
 
 const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -53,14 +35,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       return;
     }
     try {
+      // backend setea cookie httpOnly
       const data = await login(email, password);
-      localStorage.setItem("beloop_token", data.token);
-      localStorage.setItem("beloop_authenticated", "true");
-      localStorage.setItem("beloop_user_name", data.nombre || "");
-      localStorage.setItem("beloop_user_role", data.rol || "user");
-      if (window.beLoopLogin) (window as any).beLoopLogin();
+      // sincroniza banderas en LS para UI legacy
+      await bootstrapSession();
+
+      if ((window as any).beLoopLogin) (window as any).beLoopLogin();
       toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
-      navigate(data.rol === "admin" ? "/admin" : "/");
+
+      navigate(data?.rol === "admin" ? "/admin" : "/");
     } catch (err: any) {
       toast({
         title: "Error de autenticación",
@@ -69,7 +52,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       });
     }
   };
-
 
   const handleGoogleLogin = () => {
     if (!API_URL) {
@@ -82,13 +64,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       return;
     }
 
-    const from =
-      window.location.pathname +
-      window.location.search +
-      window.location.hash;
-
-    setLoadingGoogle(true); 
-    window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from || '/')}`;
+    const from = window.location.pathname + window.location.search + window.location.hash;
+    setLoadingGoogle(true);
+    window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from || "/")}`;
   };
 
   return (
