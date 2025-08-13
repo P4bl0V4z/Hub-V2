@@ -64,13 +64,15 @@ export class AuthController {
       { expiresIn: accessTtl }
     );
 
+    console.log('[googleCb] host=', req.headers.host, 'r=', r, 'token?', !!token);
+
     // cookie para todos los subdominios de beloop.io
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
       maxAge: accessTtl * 1000,
-      domain: '.beloop.io',
+      //domain: '.beloop.io',
       path: '/',
     });
 
