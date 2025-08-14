@@ -20,7 +20,6 @@ export class AuthController {
   async me(@Req() req: Request) {
     const raw = req.cookies?.access_token;
     if (!raw) throw new UnauthorizedException();
-
     const verifyOpts: Record<string, any> = {
       secret: this.config.get<string>('JWT_SECRET'),
     };

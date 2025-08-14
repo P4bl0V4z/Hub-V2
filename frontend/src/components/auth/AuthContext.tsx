@@ -5,6 +5,7 @@ type AuthUser = {
   id: string | number;
   name?: string | null;
   email: string;
+  tipoUsuario?: string;
 };
 
 type AuthContextType = {
@@ -22,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       const u = await fetchSession();
       if (u) {
-        setUser({ id: u.id, email: u.email, name: u.nombre ?? null });
+        setUser({ id: u.id, email: u.email, name: u.nombre ?? null, tipoUsuario: u.tipoUsuario ?? null });
       } else {
         setUser(null);
       }

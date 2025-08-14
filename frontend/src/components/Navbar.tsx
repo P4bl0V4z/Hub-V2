@@ -42,9 +42,19 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setIsUserMenuOpen(false);
+    }, [location.pathname]);
+// Obtener iniciales del usuario si tene nombre o correo
   const getInitial = () => {
-    const source = user?.name || user?.email || '';
-    return source.trim().charAt(0).toUpperCase() || '?';
+    const name = (user?.name || '').trim();
+    if (name) {
+      const parts = name.split(/\s+/);
+      return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+    }
+    const mail = (user?.email || '').trim();
+    return mail ? mail[0].toUpperCase() : '?';
   };
 
   const handleUserClick = () => {
@@ -55,8 +65,8 @@ export default function Navbar() {
     setIsUserMenuOpen(v => !v);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async() => {
+    await logout();
     setIsUserMenuOpen(false);
     navigate('/', { replace: true });
   };
@@ -66,10 +76,9 @@ export default function Navbar() {
       <div className="w-full mx-auto flex items-center justify-between px-4 sm:px-6 md:px-8 h-[80px] sm:h-[90px] md:h-[104px] overflow-x-hidden">
 
         {/* Logo */}
-        <a href="/" className="flex-shrink-0 flex items-center">
+        <Link to="/" className="flex-shrink-0 flex items-center">
           <img src={logo} alt="BeLoop logo" className="h-6 sm:h-8 md:h-10 w-auto" />
-        </a>
-
+        </Link>
         {/* Nav links: desktop */}
         <ul className="hidden md:flex gap-6 lg:gap-10 flex-1 justify-center overflow-x-auto">
           {navLinks.map(link => (

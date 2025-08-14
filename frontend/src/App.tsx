@@ -36,70 +36,29 @@ import AdminSupport from "./pages/admin/AdminSupport";
 import AdminActivity from "./pages/admin/AdminActivity";
 import Verify from "./pages/Verify";
 import HomePublic from "./pages/HomePublic";
+import { useAuth } from "./components/auth/AuthContext";
 import { bootstrapSession, type SessionUser } from "@/lib/auth";
 
 
 
 const App = () => {
-
   const [queryClient] = useState(() => new QueryClient());
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem("beloop_authenticated") === "true";
-  });
-
-  const [userRole, setUserRole] = useState(() => {
-    return localStorage.getItem("beloop_user_role") || "user";
-  });
-
-  useEffect(() => {
-    const checkAuth = () => {
-      const auth = localStorage.getItem("beloop_authenticated") === "true";
-      const role = localStorage.getItem("beloop_user_role") || "user";
-      setIsAuthenticated(auth);
-      setUserRole(role);
-    };
-
-    window.addEventListener("storage", checkAuth);
-    return () => window.removeEventListener("storage", checkAuth);
-  }, []);
-
-
-  useEffect(() => {
-    window.beLoopLogin = () => {
-      localStorage.setItem("beloop_authenticated", "true");
-      setIsAuthenticated(true);
-      const role = localStorage.getItem("beloop_user_role") || "user";
-      setUserRole(role);
-    };
-  }, []);
+  const { user, isAuthenticated } = useAuth();
+  const userRole = user?.tipoUsuario || "user";
 
   const [ready, setReady] = useState(false);
-
   useEffect(() => {
     (async () => {
-      const user: SessionUser | null = await bootstrapSession();
-      if (user) {
-        setIsAuthenticated(true);
-        setUserRole(user.tipoUsuario || "user");
-      } else {
-        setIsAuthenticated(false);
-        setUserRole("user");
-      }
+      const u: SessionUser | null = await bootstrapSession();
       setReady(true);
     })();
   }, []);
 
-
   const [currentPath, setCurrentPath] = useState("");
-  
   useEffect(() => {
-    const updatePath = () => {
-      setCurrentPath(window.location.pathname);
-    };
-    
+    const updatePath = () => setCurrentPath(window.location.pathname);
     updatePath();
     window.addEventListener('popstate', updatePath);
-    
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
 
@@ -116,9 +75,10 @@ const App = () => {
       "/compliance": "Tutorial: Cumplimiento Normativo",
       "/settings": "Tutorial: Configuración del Perfil",
     };
-    
     return pathMap[currentPath] || "Tutorial: BeLoop";
   };
+
+  if (!ready) return null;
 
   const isAdminPath = currentPath.startsWith('/admin');
 
@@ -206,7 +166,6 @@ const App = () => {
                 <Route path="activity" element={<AdminActivity />} />
               </Route>
               
-              {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
