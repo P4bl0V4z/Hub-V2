@@ -17,34 +17,36 @@ export class AuthController {
   ) {}
 
   @Get('me')
-  async me(@Req() req: Request, @Query('expand') expand?: string) {
+  async me(@Req() req: Request) {
     const raw = req.cookies?.access_token;
     if (!raw) throw new UnauthorizedException();
 
-    const payload = await this.jwt.verifyAsync(raw, {
+    const verifyOpts: Record<string, any> = {
       secret: this.config.get<string>('JWT_SECRET'),
-      audience: this.config.get<string>('JWT_AUDIENCE') ?? this.config.get<string>('FRONTEND_URL'),
-      issuer: this.config.get<string>('JWT_ISSUER') ?? this.config.get<string>('API_BASE_URL'),
-    });
+    };
+    const iss = this.config.get<string>('JWT_ISSUER');
+    const aud = this.config.get<string>('JWT_AUDIENCE');
+    if (typeof iss === 'string' && iss.length) verifyOpts.issuer = iss;
+    if (typeof aud === 'string' && aud.length) verifyOpts.audience = aud;
 
-    const userId: number =
-      typeof (payload as any).sub === 'string'
+    const payload = await this.jwt.verifyAsync(raw, verifyOpts);
+
+    const userId: number = typeof (payload as any).sub === 'string'
         ? parseInt((payload as any).sub, 10)
         : (payload as any).sub;
 
     if (!Number.isFinite(userId)) throw new UnauthorizedException();
 
-    const expandList = (expand ?? '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    const usuario = await this.authService.getSessionUser(userId, expandList);
+    const usuario = await this.authService.getSessionUser(userId);
     if (!usuario) throw new UnauthorizedException();
 
-    return usuario;
+    return {
+      id: usuario.id,
+      email: usuario.email,
+      tipoUsuario: usuario.tipoUsuario,
+      nombre: usuario.nombre,
+    };
   }
-
   // ---- LOCAL
   @Post('logout')
   logout(@Res() res: Response) {
@@ -67,15 +69,13 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res() res: Response) {
     const { usuario } = await this.authService.login(dto.email, dto.password);
     const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
+    const signOpts: Record<string, any> = { expiresIn: accessTtl };
+    const iss = this.config.get<string>('JWT_ISSUER');
+    const aud = this.config.get<string>('JWT_AUDIENCE');
+    if (typeof iss === 'string' && iss.length) signOpts.issuer = iss;
+    if (typeof aud === 'string' && aud.length) signOpts.audience = aud;
 
-    const token = await this.jwt.signAsync(
-      { sub: usuario.id },
-      {
-        expiresIn: accessTtl,
-        audience: this.config.get<string>('JWT_AUDIENCE') ?? this.config.get<string>('FRONTEND_URL'),
-        issuer: this.config.get<string>('JWT_ISSUER') ?? this.config.get<string>('API_BASE_URL'),
-      },
-    );
+    const token = await this.jwt.signAsync({ sub: usuario.id }, signOpts);
 
     res.cookie('access_token', token, {
       httpOnly: true,
@@ -114,15 +114,13 @@ export class AuthController {
 
     const u = (req as any).user;
     const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
+    const signOpts: Record<string, any> = { expiresIn: accessTtl };
+    const iss = this.config.get<string>('JWT_ISSUER');
+    const aud = this.config.get<string>('JWT_AUDIENCE');
+    if (typeof iss === 'string' && iss.length) signOpts.issuer = iss;
+    if (typeof aud === 'string' && aud.length) signOpts.audience = aud;
 
-    const token = await this.jwt.signAsync(
-      { sub: u.id },
-      {
-        expiresIn: accessTtl,
-        audience: this.config.get<string>('JWT_AUDIENCE') ?? this.config.get<string>('FRONTEND_URL'),
-        issuer: this.config.get<string>('JWT_ISSUER') ?? this.config.get<string>('API_BASE_URL'),
-      },
-    );
+    const token = await this.jwt.signAsync({ sub: u.id }, signOpts);
 
     res.cookie('access_token', token, {
       httpOnly: true,
