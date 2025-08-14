@@ -109,9 +109,8 @@ export default function Navbar() {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden flex flex-col justify-center items-center w-6 h-6 cursor-pointer"
-            aria-label="Abrir menú"
-            aria-expanded={isMenuOpen}
-          >
+            aria-label="Abrir menú" 
+            aria-expanded={isMenuOpen? 'true' : 'false'}>
             <span className={`block w-5 h-0.5 bg-[#F9F9F9] transition-all duration-300 ${isMenuOpen ? 'rotate-45 translate-y-1' : ''}`} />
             <span className={`block w-5 h-0.5 bg-[#F9F9F9] transition-all duration-300 my-1 ${isMenuOpen ? 'opacity-0' : ''}`} />
             <span className={`block w-5 h-0.5 bg-[#F9F9F9] transition-all duration-300 ${isMenuOpen ? '-rotate-45 -translate-y-1' : ''}`} />
@@ -134,7 +133,7 @@ export default function Navbar() {
               onClick={handleUserClick}
               className="h-6 w-6 sm:h-8 sm:w-8 flex items-center justify-center focus:outline-none"
               aria-haspopup="menu"
-              aria-expanded={isUserMenuOpen}
+              aria-expanded={isUserMenuOpen ? 'true' : 'false'}
               aria-label={isAuthenticated ? 'Cuenta' : 'Ingresar'}
             >
               {!isAuthenticated ? (
