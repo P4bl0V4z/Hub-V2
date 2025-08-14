@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { fetchSession, logout as apiLogout } from '@/lib/auth';
 
 type AuthUser = {
-  id: string;
+  id: string | number;
   name?: string | null;
   email: string;
 };
@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       const u = await fetchSession();
       if (u) {
-        setUser({ id: u.id, email: u.email, name: null });
+        setUser({ id: u.id, email: u.email, name: u.nombre ?? null });
       } else {
         setUser(null);
       }

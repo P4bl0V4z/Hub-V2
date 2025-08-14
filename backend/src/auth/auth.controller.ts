@@ -17,20 +17,34 @@ export class AuthController {
   ) {}
 
   @Get('me')
-  async me(@Req() req: Request) {
+  async me(@Req() req: Request, @Query('expand') expand?: string) {
     const raw = req.cookies?.access_token;
     if (!raw) throw new UnauthorizedException();
 
-    try {
-      // Verifica el token JWT
-      const payload = await this.jwt.verifyAsync(raw, {
-        secret: this.config.get<string>('JWT_SECRET'),
-      });
-      return { id: payload.sub, email: payload.email, tipoUsuario: payload.tipoUsuario };
-    } catch {
-      throw new UnauthorizedException();
-    }
+    const payload = await this.jwt.verifyAsync(raw, {
+      secret: this.config.get<string>('JWT_SECRET'),
+      audience: this.config.get<string>('JWT_AUDIENCE') ?? this.config.get<string>('FRONTEND_URL'),
+      issuer: this.config.get<string>('JWT_ISSUER') ?? this.config.get<string>('API_BASE_URL'),
+    });
+
+    const userId: number =
+      typeof (payload as any).sub === 'string'
+        ? parseInt((payload as any).sub, 10)
+        : (payload as any).sub;
+
+    if (!Number.isFinite(userId)) throw new UnauthorizedException();
+
+    const expandList = (expand ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const usuario = await this.authService.getSessionUser(userId, expandList);
+    if (!usuario) throw new UnauthorizedException();
+
+    return usuario;
   }
+
   // ---- LOCAL
   @Post('logout')
   logout(@Res() res: Response) {
@@ -51,16 +65,27 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Res() res: Response) {
-    const data = await this.authService.login(dto.email, dto.password);
+    const { usuario } = await this.authService.login(dto.email, dto.password);
     const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
-    res.cookie('access_token', data.token, {
+
+    const token = await this.jwt.signAsync(
+      { sub: usuario.id },
+      {
+        expiresIn: accessTtl,
+        audience: this.config.get<string>('JWT_AUDIENCE') ?? this.config.get<string>('FRONTEND_URL'),
+        issuer: this.config.get<string>('JWT_ISSUER') ?? this.config.get<string>('API_BASE_URL'),
+      },
+    );
+
+    res.cookie('access_token', token, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
       path: '/',
       maxAge: accessTtl * 1000,
     });
-    return res.status(200).json({ ok: true, nombre: data.nombre});
+
+    return res.status(200).json({ ok: true, nombre: usuario.nombre, rol: usuario.tipoUsuario });
   }
 
   // ===== OAUTH: GOOGLE =====
@@ -69,13 +94,14 @@ export class AuthController {
   googleStart() {
     // vacío a propósito
   }
+
   // Callback de Google
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  googleCb(@Req() req: Request, @Res() res: Response) {
+  async googleCb(@Req() req: Request, @Res() res: Response) {
     const { state } = req.query as { state?: string };
     if (!state) return res.status(400).send('Missing state');
-    // Verifica el "state" firmado
+
     let r = '/';
     try {
       const decoded = this.jwt.verify(state, {
@@ -87,23 +113,23 @@ export class AuthController {
     }
 
     const u = (req as any).user;
-
     const accessTtl = Number(this.config.get('JWT_ACCESS_TTL') || 3600);
-    const token = this.jwt.sign(
-      { sub: u.id, email: u.email, tipoUsuario: u.tipoUsuario },
-      { expiresIn: accessTtl }
+
+    const token = await this.jwt.signAsync(
+      { sub: u.id },
+      {
+        expiresIn: accessTtl,
+        audience: this.config.get<string>('JWT_AUDIENCE') ?? this.config.get<string>('FRONTEND_URL'),
+        issuer: this.config.get<string>('JWT_ISSUER') ?? this.config.get<string>('API_BASE_URL'),
+      },
     );
 
-    console.log('[googleCb] host=', req.headers.host, 'r=', r, 'token?', !!token);
-
-    // cookie para todos los subdominios de beloop.io
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
-      maxAge: accessTtl * 1000,
-      //domain: '.beloop.io',
       path: '/',
+      maxAge: accessTtl * 1000,
     });
 
     const frontend = this.config.get<string>('FRONTEND_URL')!;

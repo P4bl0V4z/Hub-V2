@@ -20,32 +20,33 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // ---------- REGISTRO ----------
   async register(data: RegisterDto) {
+    const email = data.email.toLowerCase();
+
     const existing = await this.prisma.usuario.findUnique({
-      where: { email: data.email.toLowerCase() },
+      where: { email },
     });
-    if (existing) {
-      throw new BadRequestException('Email ya registrado');
-    }
+    if (existing) throw new BadRequestException('Email ya registrado');
 
     const pepper = this.config.get<string>('PASSWORD_PEPPER') ?? '';
     const cost = Number(this.config.get('BCRYPT_COST') ?? 12);
     const hashed = await bcrypt.hash(data.password + pepper, cost);
 
+    // token de verificación (JWT) + hash persistido
     const token = await this.jwtService.signAsync(
-      { email: data.email.toLowerCase() },
+      { email },
       {
         secret: this.config.get<string>('JWT_SECRET'),
         algorithm: 'HS256',
         expiresIn: '1d',
       },
     );
-
     const tokenHash = createHash('sha256').update(token).digest('hex');
 
     await this.prisma.usuario.create({
       data: {
-        email: data.email.toLowerCase(),
+        email,
         password: hashed,
         nombre: data.nombre,
         tokenVerificacion: tokenHash,
@@ -55,11 +56,11 @@ export class AuthService {
       },
     });
 
-    await this.mailer.sendVerificationEmail(data.email.toLowerCase(), token);
-
+    await this.mailer.sendVerificationEmail(email, token);
     return { message: 'Usuario creado. Revisa tu email para activarlo.' };
   }
 
+  // ---------- VERIFICACIÓN DE EMAIL ----------
   async verifyEmail(token: string) {
     if (!token) throw new BadRequestException('Token requerido');
 
@@ -81,9 +82,7 @@ export class AuthService {
         select: { email: true, activo: true, tokenVerificacion: true },
       });
       if (!usuario) throw new BadRequestException('Token inválido');
-      if (usuario.activo) {
-        return { message: 'Cuenta ya verificada' };
-      }
+      if (usuario.activo) return { message: 'Cuenta ya verificada' };
 
       const incomingHash = createHash('sha256').update(token).digest('hex');
       if (!usuario.tokenVerificacion || usuario.tokenVerificacion !== incomingHash) {
@@ -100,12 +99,12 @@ export class AuthService {
       });
 
       return { message: 'Cuenta verificada correctamente' };
-    } catch (e) {
-      // console.error('verifyEmail error:', e?.name, e?.message);
+    } catch {
       throw new BadRequestException('Token inválido o expirado');
     }
   }
 
+  // ---------- LOGIN LOCAL (sin firmar JWT aquí) ----------
   async login(email: string, password: string) {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email: email.toLowerCase() },
@@ -137,19 +136,14 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payload = {
-      sub: usuario.id,
-      email: usuario.email,
-      tipoUsuario: usuario.tipoUsuario,
-    };
-    const token = this.jwtService.sign(payload);
-
     try {
       await this.prisma.usuario.update({
         where: { id: usuario.id },
         data: { lastLoginAt: new Date() },
       });
-    } catch (_) {}
+    } catch {
+      /* noop */
+    }
 
     const empresas = usuario.empresas.map((ue) => ({
       id: ue.empresa.id,
@@ -158,10 +152,58 @@ export class AuthService {
     }));
 
     return {
-      token,
-      nombre: usuario.nombre,
-      email: usuario.email,
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        tipoUsuario: usuario.tipoUsuario,
+      },
       empresas,
     };
   }
+
+  // ---------- OBTENER USUARIO DE SESIÓN ----------
+  async getSessionUser(userId: number, expand: string[] = []) {
+    const allow = new Set(['empresas', 'roles']);
+
+    const includeEmpresas = allow.has('empresas') && expand.includes('empresas');
+    const includeRoles = allow.has('roles') && expand.includes('roles');
+
+    const include: any = {};
+
+    if (includeEmpresas) {
+      include.empresas = {
+        include: {
+          empresa: { select: { id: true, nombre: true } },
+          ...(includeRoles
+            ? { roles: { include: { rol: { select: { id: true, nombre: true } } } } }
+            : { roles: false }),
+        },
+      };
+    }
+
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        tipoUsuario: true,
+        ...(includeEmpresas ? { empresas: true } : {}),
+      },
+    });
+
+    if (!user) return null;
+
+    if (includeEmpresas && Array.isArray(user.empresas)) {
+      (user as any).empresas = user.empresas.map((ue: any) => ({
+        id: ue.empresa.id,
+        nombre: ue.empresa.nombre,
+        roles: includeRoles ? ue.roles.map((r: any) => r.rol.nombre) : undefined,
+      }));
+    }
+
+    return user;
+  }
+
 }
