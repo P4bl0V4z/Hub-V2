@@ -5,7 +5,7 @@
 
 @font-face {
   font-family: 'Asap Expanded';
-  src: url('/fonts/AsapExpanded-Bold.woff2') format('woff2'); /* Ajusta ruta y formato según tu archivo */
+  src: url('../assets/fonts/AsapExpanded-Bold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
 }
