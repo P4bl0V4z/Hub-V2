@@ -1,16 +1,16 @@
 // src/pages/diagnostic/DiagnosticRunner.tsx
 // -----------------------------------------------------------------------------
-// RUNNER MINIMALISTA + PORCENTAJE DE AVANCE HACIA "Q_PLAN":
+// RUNNER CON SIDEBAR + PORCENTAJE DE AVANCE HACIA "Q_PLAN":
 // - Pantalla limpia: título de pregunta, opciones, botón "Siguiente".
-// - % muestra cuánto falta para llegar a elegir plan (no # de preguntas).
+// - % muestra cuánto falta para llegar a elegir plan (solo ruta "Micro").
 // - Persistencia en localStorage.
-// - Botón "Reiniciar" para probar el flujo fácilmente.
+// - Botón "Reiniciar" para testear el flujo.
 // -----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// ⚠ Si no tienes estos componentes, sustituye temporalmente por <div>/<button>
+// Si no tienes estos componentes, sustituye por <div>/<button>
 import Sidebar from "../../components/Sidebar";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -23,11 +23,11 @@ import {
   type QuestionId,
   type SectionKey,
   computeOutcome,
-} from "../../diagnostic/flowConfig";
+} from "@/diagnostic/flowConfig"; // ← usa alias @ a src
 
 const STATE_KEY = "dt_state_v2";
 
-// Estructura de estado canónico
+// Estado canónico
 type State = {
   currentId: QuestionId;
   answers: Record<string, string>;
@@ -53,7 +53,14 @@ function loadState(): State {
   return {
     currentId: FIRST_QUESTION,
     answers: {},
-    sectionDone: { antecedentes: false, vu_retc: false },
+    // incluye TODAS las secciones actuales del flow
+    sectionDone: {
+      antecedentes: false,
+      trazabilidad: false,
+      sistema_gestion: false,
+      vu_retc: false,
+      medicion: false,
+    },
     history: [],
     finished: false,
     outcomes: [],
@@ -67,15 +74,14 @@ export default function DiagnosticRunner() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>(() => loadState());
 
-  // Persistimos cada cambio en localStorage
+  // Persistimos cada cambio
   useEffect(() => { saveState(state); }, [state]);
 
   // Pregunta actual
   const current = useMemo(() => QUESTIONS[state.currentId], [state.currentId]);
 
   // ---------------------------------------------------------------------------
-  // PROGRESO HACIA Q_PLAN (NO # DE PREGUNTAS):
-  // Ruta Micro → Q_PLAN:
+  // PROGRESO HACIA Q_PLAN (solo ruta Micro):
   // 1) Q_SIZE (micro) → 2) Q_VU_REG → 3) Q_VU_APERTURA (si aplica)
   // → 4) Q_VU_DECL (si aplica) → 5) Q_ENCARGADO → Q_PLAN
   // ---------------------------------------------------------------------------
@@ -83,18 +89,12 @@ export default function DiagnosticRunner() {
   const progressToPlan = useMemo(() => {
     const a = state.answers;
 
-    // Si ya estamos por elegir plan o finalizamos, 100%
     if (state.currentId === "Q_PLAN" || state.finished) {
       return { applicable: true, remaining: 0, percent: 100 };
     }
-
-    // Si aún no eligió tamaño, 0%
     if (!a.Q_SIZE) return { applicable: true, remaining: PLAN_TOTAL_STEPS, percent: 0 };
-
-    // Si no es micro, esta ruta no aplica
     if (a.Q_SIZE !== "micro") return { applicable: false, remaining: 0, percent: 0 };
 
-    // Es micro: contamos pasos completados
     let completed = 1; // Q_SIZE (micro)
     if (a.Q_VU_REG) completed += 1;
 
@@ -110,13 +110,13 @@ export default function DiagnosticRunner() {
     return { applicable: true, remaining, percent };
   }, [state.answers, state.currentId, state.finished]);
 
-  // Validación mínima por pregunta (si la pregunta define validate)
+  // Validación mínima
   const validationMsg = useMemo(
     () => current?.validate?.(state.answers) ?? null,
     [current, state.answers]
   );
 
-  // Guardar selección de la pregunta actual
+  // Guardar selección
   const handleSelect = (qid: QuestionId, value: string) => {
     setState(s => ({ ...s, answers: { ...s.answers, [qid]: value } }));
   };
@@ -133,18 +133,26 @@ export default function DiagnosticRunner() {
   // Marcar sección como completa si todas sus preguntas están respondidas
   const markSectionIfCompleted = (qid: QuestionId, answers: Record<string,string>) => {
     const section = QUESTIONS[qid].sectionKey;
-    const ids = Object.values(QUESTIONS).filter(q => q.sectionKey === section && q.id !== "END").map(q => q.id);
+    const ids = Object.values(QUESTIONS)
+      .filter(q => q.sectionKey === section && q.id !== "END")
+      .map(q => q.id);
     const allAnswered = ids.every(id => answers[id]);
     return { ...state.sectionDone, [section]: allAnswered };
   };
 
-  // 🔁 Reiniciar: limpia localStorage y vuelve al estado inicial
+  // Reiniciar
   const resetAll = () => {
-    localStorage.removeItem(STATE_KEY); // borra el snapshot persistido
+    localStorage.removeItem(STATE_KEY);
     setState({
       currentId: FIRST_QUESTION,
       answers: {},
-      sectionDone: { antecedentes: false, vu_retc: false },
+      sectionDone: {
+        antecedentes: false,
+        trazabilidad: false,
+        sistema_gestion: false,
+        vu_retc: false,
+        medicion: false,
+      },
       history: [],
       finished: false,
       outcomes: [],
@@ -161,7 +169,6 @@ export default function DiagnosticRunner() {
     const nextId = computeNextId(qid, value);
 
     if (nextId === "END") {
-      // Consolidamos outcome final para resumen/backend
       const { afecta_rep, vu_stage, encargado_flag, selected_plan } = computeOutcome({ ...state.answers });
       const finalOutcome = {
         afecta_rep,
@@ -193,7 +200,7 @@ export default function DiagnosticRunner() {
     }));
   };
 
-  // Render de una pregunta single-choice (UI limpia)
+  // Render pregunta single-choice
   const renderSingle = () => {
     const qid = current.id;
     const selected = state.answers[qid] || "";
@@ -214,12 +221,12 @@ export default function DiagnosticRunner() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar conservada */}
       <Sidebar />
 
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl p-6">
-
-          {/* Encabezado: % a la izquierda (si aplica) + botón Reiniciar a la derecha */}
+          {/* Encabezado: % a la izquierda + Reiniciar a la derecha */}
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {progressToPlan.applicable && (
@@ -236,7 +243,6 @@ export default function DiagnosticRunner() {
 
           <Card>
             <CardHeader>
-              {/* Solo el título de la pregunta actual */}
               <CardTitle>{current.title}</CardTitle>
             </CardHeader>
 
