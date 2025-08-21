@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
 import { ContextualHelpProvider } from "@/components/ContextualHelp";
 
 import Index from "./pages/Index";
@@ -42,6 +42,21 @@ import AdminActivity from "./pages/admin/AdminActivity";
 import Verify from "./pages/Verify";
 import HomePublic from "./pages/HomePublic";
 
+declare global {
+  interface Window {
+    beLoopLogin?: () => void;
+  }
+}
+
+// Mantiene currentPath en sync con React Router
+function PathSync({ onChange }: { onChange: (path: string) => void }) {
+  const location = useLocation();
+  useEffect(() => {
+    onChange(location.pathname);
+  }, [location, onChange]);
+  return null;
+}
+
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -65,7 +80,6 @@ const App = () => {
 
   useEffect(() => {
     // utilitario para probar login desde consola
-    // window.beLoopLogin()
     window.beLoopLogin = () => {
       localStorage.setItem("beloop_authenticated", "true");
       setIsAuthenticated(true);
@@ -76,14 +90,7 @@ const App = () => {
 
   const [currentPath, setCurrentPath] = useState("");
 
-  useEffect(() => {
-    const updatePath = () => setCurrentPath(window.location.pathname);
-    updatePath();
-    window.addEventListener("popstate", updatePath);
-    return () => window.removeEventListener("popstate", updatePath);
-  }, []);
-
-  const getTutorialTitle = () => {
+  const getTutorialTitle = useCallback(() => {
     const pathMap: Record<string, string> = {
       "/": "Tutorial: Panel Principal",
       "/inventory": "Tutorial: Gestión de Inventario",
@@ -95,9 +102,11 @@ const App = () => {
       "/reports": "Tutorial: Reportes y Análisis",
       "/compliance": "Tutorial: Cumplimiento Normativo",
       "/settings": "Tutorial: Configuración del Perfil",
+      "/diagnostic": "Tutorial: Diagnóstico",
+      "/diagnostic/summary": "Tutorial: Resumen del Diagnóstico",
     };
     return pathMap[currentPath] || "Tutorial: BeLoop";
-  };
+  }, [currentPath]);
 
   const isAdminPath = currentPath.startsWith("/admin");
 
@@ -108,6 +117,8 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <PathSync onChange={setCurrentPath} />
+
             {isAuthenticated && !isAdminPath && (
               <>
                 <GlobalSearch />
@@ -183,21 +194,21 @@ const App = () => {
 
               {/* ✅ Diagnóstico: runner secuencial + summary */}
               <Route
-                path="/diagnostic-test"
+                path="/diagnostic"
                 element={isAuthenticated ? <DiagnosticRunner /> : <Navigate to="/login" replace />}
               />
               <Route
-                path="/diagnostic-test/summary"
+                path="/diagnostic/summary"
                 element={isAuthenticated ? <DiagnosticSummary /> : <Navigate to="/login" replace />}
               />
 
               {/* Opcional: placeholders de secciones modulares posteriores */}
               <Route
-                path="/diagnostic-test/medicion"
+                path="/diagnostic/medicion"
                 element={isAuthenticated ? <div className="p-6">Medición (placeholder)</div> : <Navigate to="/login" replace />}
               />
               <Route
-                path="/diagnostic-test/vu-retc"
+                path="/diagnostic/vu-retc"
                 element={isAuthenticated ? <div className="p-6">VU – RETC (placeholder)</div> : <Navigate to="/login" replace />}
               />
 
@@ -232,6 +243,9 @@ const App = () => {
                 <Route path="support" element={<AdminSupport />} />
                 <Route path="activity" element={<AdminActivity />} />
               </Route>
+
+              {/* 🔁 Backward-compat: redirige cualquier /diagnostic-test/* */}
+              <Route path="/diagnostic-test/*" element={<Navigate to="/diagnostic" replace />} />
 
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
