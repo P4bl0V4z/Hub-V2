@@ -84,6 +84,7 @@ function loadState(): State {
     outcomes: [],
   };
 }
+
 function saveState(s: State) {
   localStorage.setItem(STATE_KEY, JSON.stringify(s));
 }
@@ -111,6 +112,7 @@ const safeParse = <T,>(s?: string): T | undefined => {
 export default function DiagnosticRunner() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>(() => loadState());
+  
   useEffect(() => {
     saveState(state);
   }, [state]);
@@ -123,14 +125,21 @@ export default function DiagnosticRunner() {
     if (state.currentId === "Q_PLAN" || state.finished) return { applicable: true, remaining: 0, percent: 100 };
     if (!a.Q_SIZE) return { applicable: true, remaining: PLAN_TOTAL_STEPS, percent: 0 };
     if (a.Q_SIZE !== "micro") return { applicable: false, remaining: 0, percent: 0 };
+    
     let completed = 1;
     if (a.Q_VU_REG) completed += 1;
     if (a.Q_VU_REG === "si") {
       if (a.Q_VU_APERTURA) completed += 1;
       if (a.Q_VU_APERTURA === "si" && a.Q_VU_DECL) completed += 1;
     }
-    if (a.Q_ENCARGADO) completed += 1;
+    
+    // helper: encargado respondido en Trazabilidad o en VU
+    const hasEncargado = (a: Record<string, string>) =>
+      Boolean(a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO);
+
+    if (hasEncargado(a)) completed += 1;
     if (completed > PLAN_TOTAL_STEPS) completed = PLAN_TOTAL_STEPS;
+    
     const remaining = PLAN_TOTAL_STEPS - completed;
     const percent = Math.round((completed / PLAN_TOTAL_STEPS) * 100);
     return { applicable: true, remaining, percent };
@@ -172,12 +181,22 @@ export default function DiagnosticRunner() {
       const idx = COMPLEXITY_QIDS.indexOf(qid);
       setState((s) => {
         const nextAnswers = { ...s.answers, [qid]: value };
-        for (let i = idx + 1; i < COMPLEXITY_QIDS.length; i++) delete nextAnswers[COMPLEXITY_QIDS[i]];
+        for (let i = idx + 1; i < COMPLEXITY_QIDS.length; i++) {
+          delete nextAnswers[COMPLEXITY_QIDS[i]];
+        }
         return { ...s, answers: nextAnswers };
       });
       return;
     }
-    setState((s) => ({ ...s, answers: { ...s.answers, [qid]: value } }));
+
+    // ⬇️ CAMBIO: espejo Q_TRAZ_ENCARGADO → Q_ENCARGADO
+    setState((s) => {
+      const nextAnswers: Record<string, string> = { ...s.answers, [qid]: value };
+      if (qid === "Q_TRAZ_ENCARGADO" && !nextAnswers.Q_ENCARGADO) {
+        nextAnswers.Q_ENCARGADO = value;
+      }
+      return { ...s, answers: nextAnswers };
+    });
   };
 
   const computeNextId = (qid: QuestionId, value: string): QuestionId => {
@@ -221,27 +240,13 @@ export default function DiagnosticRunner() {
     const nextId = computeNextId(qid, value);
 
     if (nextId === "END") {
-      const {
-        afecta_rep,
-        vu_stage,
-        encargado_flag,
-        selected_plan,
-        traz_madurez,
-        traz_complex_score,
-        traz_complex_level,
-      } = computeOutcome({ ...state.answers });
-
+      // ✅ SIMPLIFICADO: computeOutcome ya maneja el override de medición automáticamente
       const finalOutcome = {
-        afecta_rep,
-        vu_stage,
-        encargado_flag,
-        selected_plan,
-        traz_madurez,
-        traz_complex_score,
-        traz_complex_level,
+        ...computeOutcome({ ...state.answers }),
         decided_at: new Date().toISOString(),
         tag: "final",
       };
+
       const sectionDone = markSectionIfCompleted(qid, state.answers);
 
       setState((s) => ({
@@ -374,41 +379,57 @@ export default function DiagnosticRunner() {
                     const qid: QuestionId = "Q_MEDICION_TODO";
                     const nextAnswers = { ...state.answers, [qid]: JSON.stringify(payload) };
 
-                    const {
-                      afecta_rep,
-                      vu_stage,
-                      encargado_flag,
-                      selected_plan,
-                      traz_madurez,
-                      traz_complex_score,
-                      traz_complex_level,
-                    } = computeOutcome({ ...nextAnswers });
-
-                    const finalOutcome = {
-                      afecta_rep,
-                      vu_stage,
-                      encargado_flag,
-                      selected_plan,
-                      traz_madurez,
-                      traz_complex_score,
-                      traz_complex_level,
+                    // ✅ SIMPLIFICADO: computeOutcome ya maneja la afectación REP automáticamente
+                    const outcome = {
+                      ...computeOutcome({ ...nextAnswers }),
                       decided_at: new Date().toISOString(),
-                      tag: "final",
+                      tag: "medicion" as const,
                     };
 
-                    const sectionDone = markSectionIfCompleted(qid, nextAnswers);
+                    // ✅ Umbral mayor o igual a 300 kg para ruteo
+                    const toTraz = (payload?.totalKg ?? 0) >= 300;
 
-                    setState((s) => ({
-                      ...s,
-                      answers: nextAnswers,
-                      currentId: "END",
-                      history: [...s.history, qid],
-                      finished: true,
-                      outcomes: [...s.outcomes, finalOutcome],
-                      sectionDone,
-                    }));
+                    // Limpiar respuestas de la sección objetivo para empezar desde el inicio
+                    const cleaned = { ...nextAnswers };
+                    
+                    if (toTraz) {
+                      // Limpiar trazabilidad para empezar desde el inicio
+                      const TRAZ_QIDS: QuestionId[] = [
+                        "Q_TRAZ_ESTAND",
+                        "Q_TRAZ_ENCARGADO",
+                        "Q_TRAZ_FAMILIAS",
+                        "Q_TRAZ_LINEAS",
+                        "Q_TRAZ_CATEGORIAS",
+                        "Q_TRAZ_SKUS",
+                        "Q_TRAZ_NIVELES",
+                        "Q_TRAZ_COMPONENTES",
+                      ];
+                      TRAZ_QIDS.forEach((id) => delete (cleaned as any)[id]);
 
-                    setTimeout(() => navigate(SUMMARY_PATH), 0);
+                      setState((s) => ({
+                        ...s,
+                        answers: cleaned,
+                        currentId: "Q_TRAZ_ESTAND",
+                        history: [...s.history, qid],
+                        finished: false,
+                        outcomes: [...s.outcomes, outcome],
+                        sectionDone: { ...s.sectionDone, trazabilidad: false },
+                      }));
+                    } else {
+                      // Limpiar VU-RETC para entrar desde el inicio
+                      const VU_IDS: QuestionId[] = ["Q_VU_REG", "Q_VU_APERTURA", "Q_VU_DECL"];
+                      VU_IDS.forEach((id) => delete (cleaned as any)[id]);
+
+                      setState((s) => ({
+                        ...s,
+                        answers: cleaned,
+                        currentId: "Q_VU_REG",
+                        history: [...s.history, qid],
+                        finished: false,
+                        outcomes: [...s.outcomes, outcome],
+                        sectionDone: { ...s.sectionDone, vu_retc: false },
+                      }));
+                    }
                   }}
                 />
               ) : isComplexityScreen ? (

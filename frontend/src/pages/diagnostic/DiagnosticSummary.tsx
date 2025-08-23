@@ -2,12 +2,15 @@
 // -----------------------------------------------------------------------------
 // SUMARIO (v3):
 // - Lee el estado v3 del diagnóstico.
-// - Muestra un "Registro interno" con:
-//   * Timestamp de decisión, Afectación REP, Etapa VU, Encargado, Plan,
-//     Madurez, Complejidad (nivel + puntaje total).
-// - Muestra TODAS las PREGUNTAS y RESPUESTAS en una tarjeta aparte.
-//   * Para Q_TRAZ_ESTAND, además del rótulo elegido (Óptimo/Bueno/…),
-//     muestra la clasificación de madurez: Empresa Avanzada / en Transición / Inicial.
+// - "Registro interno": SOLO muestra si está afecto a la Ley REP (Sí/No/Indeterminado)
+//   derivado de:
+//     * (NEW) Q_SIZE = "micro" -> No
+//     * Q_COMERCIALIZA = "no"  -> No
+//     * Q_KG300 = "si"         -> Sí
+//     * Q_KG300 = "no"         -> No
+//     * Q_KG300 = "ns"         -> usa Medición.totalKg (>300 -> Sí; <=300 -> No; sin datos -> Indeterminado)
+// - Muestra TODAS las PREGUNTAS y RESPUESTAS en una tarjeta aparte
+//   (para Q_TRAZ_ESTAND agrega la madurez visual).
 // -----------------------------------------------------------------------------
 
 import { useMemo } from "react";
@@ -39,44 +42,64 @@ function madurezFromEstand(v?: string | null) {
   return null;
 }
 
+// Safe parse para JSON guardado en answers (p.ej. Q_MEDICION_TODO)
+function safeParse<T>(s?: string): T | undefined {
+  try { return s ? (JSON.parse(s) as T) : undefined; } catch { return undefined; }
+}
+
+type MedicionPayload = { totalKg?: number };
+
 export default function DiagnosticSummary() {
   const state = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem(STATE_KEY) || "{}"); } catch { return {}; }
+    try {
+      return JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
+    } catch {
+      return {};
+    }
   }, []);
 
   const answers: Record<string, string> = state?.answers ?? {};
-  const outcomes: Outcome[] = state?.outcomes ?? [];
 
+  // Lista plana de preguntas (excluye END)
   const qList = useMemo(
     () => Object.values(QUESTIONS).filter((q) => q.id !== "END"),
     []
   );
 
+  // ---- Derivar Afectación REP SOLO desde respuestas ---------------------------------
+  const repStatus: "Sí" | "No" | "Indeterminado" = useMemo(() => {
+    // NEW: micro = No afecto (salta todo lo demás)
+    if (answers.Q_SIZE === "micro") return "No";
+
+    const comercializa = answers.Q_COMERCIALIZA;          // "si" | "no"
+    const kg300 = answers.Q_KG300;                        // "si" | "no" | "ns"
+    const medicion = safeParse<MedicionPayload>(answers.Q_MEDICION_TODO);
+    const totalKg = medicion?.totalKg;
+
+    // Si NO comercializa, no está afecto
+    if (comercializa === "no") return "No";
+
+    // Si sí comercializa:
+    if (kg300 === "si") return "Sí";
+    if (kg300 === "no") return "No";
+
+    // "No lo sé": usar medición si existe
+    if (kg300 === "ns") {
+      if (typeof totalKg === "number" && Number.isFinite(totalKg)) {
+        return totalKg >= 300 ? "Sí" : "No"; // "más de 300 kg"
+      }
+      return "Indeterminado";
+    }
+
+    // Si aún no respondió esas preguntas
+    return "Indeterminado";
+  }, [answers]);
+
   const labelFor = (qid: string, val: string) => {
     const q = QUESTIONS[qid as keyof typeof QUESTIONS];
     if (!q) return val || "—";
     const opt = q.options?.find((o) => o.value === val);
-    return opt?.label ?? val ?? "—";
-  };
-
-  const prettyYesNo = (v?: "si" | "no" | null) =>
-    v == null ? "—" : v === "si" ? "Sí" : "No";
-
-  const prettyPlan = (p?: "simple" | "pro" | "enterprise" | null) => {
-    if (!p) return "—";
-    if (p === "simple") return "Plan Simple";
-    if (p === "pro") return "Plan Pro";
-    if (p === "enterprise") return "Plan Enterprise";
-    return p;
-  };
-
-  const prettyLevel = (lvl?: string | null) => {
-    if (!lvl) return "—";
-    if (lvl === "basica") return "Básica";
-    if (lvl === "intermedia") return "Intermedia";
-    if (lvl === "avanzada") return "Avanzada";
-    if (lvl === "compleja") return "Compleja";
-    return lvl;
+    return opt?.label ?? (val ?? "—");
   };
 
   return (
@@ -86,68 +109,29 @@ export default function DiagnosticSummary() {
         <div className="mx-auto max-w-4xl space-y-6">
           <h1 className="text-3xl font-bold">Resumen del Diagnóstico</h1>
 
-          {/* Registro interno */}
+          {/* Registro interno: SOLO Afectación Ley REP (derivada de respuestas) */}
           <Card>
-            <CardHeader><CardTitle>Registro interno</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {outcomes.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Sin decisiones registradas aún.</div>
-              ) : (
-                outcomes.map((o, i) => (
-                  <div key={i} className="rounded-md border p-4">
-                    <div className="mb-2 text-xs text-muted-foreground">
-                      Decidido en:{" "}
-                      <span className="font-medium">
-                        {o.decided_at ? new Date(o.decided_at).toLocaleString() : "—"}
-                      </span>
-                      {o.tag ? <span className="ml-2">({o.tag})</span> : null}
-                    </div>
-
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="text-sm">
-                        <div className="mb-1 font-medium">Afectación Ley REP</div>
-                        <Badge>{o.afecta_rep ?? "—"}</Badge>
-                      </div>
-                      <div className="text-sm">
-                        <div className="mb-1 font-medium">Etapa VU</div>
-                        <Badge variant="secondary">{o.vu_stage ?? "—"}</Badge>
-                      </div>
-                      <div className="text-sm">
-                        <div className="mb-1 font-medium">Encargado</div>
-                        <Badge variant="secondary">{prettyYesNo(o.encargado_flag)}</Badge>
-                      </div>
-                      <div className="text-sm">
-                        <div className="mb-1 font-medium">Plan Seleccionado</div>
-                        <Badge variant="secondary">{prettyPlan(o.selected_plan)}</Badge>
-                      </div>
-                      <div className="text-sm">
-                        <div className="mb-1 font-medium">Madurez (Estandarización)</div>
-                        <Badge variant="secondary">{o.traz_madurez ?? "—"}</Badge>
-                      </div>
-                      <div className="text-sm">
-                        <div className="mb-1 font-medium">Complejidad Estructural</div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{prettyLevel(o.traz_complex_level)}</Badge>
-                          <span className="text-muted-foreground text-xs">
-                            {o.traz_complex_score != null
-                              ? `puntaje total ${o.traz_complex_score.toFixed(2)}`
-                              : "puntaje total —"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+            <CardHeader>
+              <CardTitle>Registro interno</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border p-4">
+                <div className="text-sm">
+                  <div className="mb-1 font-medium">Afectación Ley REP</div>
+                  <Badge>{repStatus}</Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* Preguntas y respuestas */}
           <Card>
-            <CardHeader><CardTitle>Preguntas y respuestas</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>Preguntas y respuestas</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3">
               {qList.map((q) => {
-                const section = SECTIONS.find((s) => s.key === q.sectionKey)?.label;
+                const section = SECTIONS.find((s) => s.key == q.sectionKey)?.label;
                 const val = answers[q.id] ?? "—";
                 let label = labelFor(q.id, val);
 

@@ -1,5 +1,21 @@
 import { ComplexityLevel, COMPLEXITY_WEIGHTS, LEVELS, THRESHOLDS } from "./constants";
 
+// Tipo para los datos de medición
+type MedicionPayload = {
+  totalKg?: number;
+  totalKgPorMaterial?: Record<string, number>;
+  productos?: any[];
+};
+
+// Helper para parsear JSON de forma segura
+const safeParse = <T,>(s?: string): T | undefined => {
+  try {
+    return s ? (JSON.parse(s) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 // Consolida el estado final para un resumen/backend.
 export function computeOutcome(answers: Record<string, string>) {
   // Antecedentes
@@ -85,6 +101,20 @@ export function computeOutcome(answers: Record<string, string>) {
   // Bandera de encargado y plan seleccionado (para resumen/UI)
   const encargado_flag = (encargado ?? null) as "si" | "no" | null;
   const selected_plan = (plan ?? null) as "simple" | "pro" | "enterprise" | null;
+
+  // =================== 🎯 FUENTE ÚNICA DE VERDAD: OVERRIDE CON MEDICIÓN ===================
+  // Si tenemos datos de medición y totalKg >= 300, forzar afecta_rep = "Sí"
+  const medicionData = safeParse<MedicionPayload>(answers.Q_MEDICION_TODO);
+  if (medicionData?.totalKg != null && Number.isFinite(medicionData.totalKg)) {
+    if (medicionData.totalKg >= 300) {
+      afecta_rep = "Sí"; // 🔥 Override definitivo: >= 300 kg siempre afecta REP
+    } else {
+      // Solo sobrescribir si estaba indeterminado por Q_KG300 = "ns"
+      if (kg300 === "ns") {
+        afecta_rep = "No"; // < 300 kg + era indeterminado = No afecta
+      }
+    }
+  }
 
   return {
     afecta_rep,
