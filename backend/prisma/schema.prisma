@@ -19,11 +19,12 @@ model Usuario {
   activo            Boolean          @default(false)
   verificadoEn      DateTime?        @map("verificado_en")
   tipoUsuario       String?          @map("tipo_usuario")
-  googleId          String?    @unique @map("google_id")
-  msId              String?    @unique @map("ms_id")
-  avatarUrl         String?    @map("avatar_url")
-  lastLoginAt       DateTime?  @map("last_login_at")
+  googleId          String?          @unique @map("google_id")
+  msId              String?          @unique @map("ms_id")
+  avatarUrl         String?          @map("avatar_url")
+  lastLoginAt       DateTime?        @map("last_login_at")
   empresas          UsuarioEmpresa[]
+  testAttempts TestAttempt[]
 }
 
 model Empresa {
@@ -61,4 +62,18 @@ model UsuarioRol {
   usuarioEmpresa   UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
 
   @@unique([usuarioEmpresaId, rolId])
+}
+model TestAttempt {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  testId      Int     
+  label       String?
+  startedAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  progress    Json      @db.JsonB
+  user        Usuario   @relation(fields: [userId], references: [id])
+  @@index([userId, testId, completed])
+  @@index([testId, completedAt])
 }
