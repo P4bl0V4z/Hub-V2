@@ -8,6 +8,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { InfoCard } from "@/components/InfoCard";
+import { getQuestionInfo } from "./flow/infoContent";
+import { X } from 'lucide-react';
 
 import {
   QUESTIONS,
@@ -112,12 +115,18 @@ const safeParse = <T,>(s?: string): T | undefined => {
 export default function DiagnosticRunner() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>(() => loadState());
+  const [showInfoCard, setShowInfoCard] = useState(false);
   
   useEffect(() => {
     saveState(state);
   }, [state]);
 
+  useEffect(() => {
+    setShowInfoCard(false);
+  }, [state.currentId]);
+
   const current = useMemo(() => QUESTIONS[state.currentId], [state.currentId]);
+  const questionInfo = useMemo(() => getQuestionInfo(state.currentId), [state.currentId]);
 
   const PLAN_TOTAL_STEPS = 5;
   const progressToPlan = useMemo(() => {
@@ -346,11 +355,12 @@ export default function DiagnosticRunner() {
     );
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl p-6">
+ return (
+  <div className="flex h-screen overflow-hidden bg-background">
+    <Sidebar />
+    <main className="flex-1 overflow-y-auto">
+      <div className={`mx-auto p-6 ${questionInfo && showInfoCard ? 'max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6' : 'max-w-2xl flex flex-col items-center'}`}>
+        <div className={`w-full ${questionInfo && showInfoCard ? '' : 'max-w-xl'}`}>
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {progressToPlan.applicable && (
@@ -364,10 +374,18 @@ export default function DiagnosticRunner() {
             </Button>
           </div>
 
-          <Card>
+          <Card className={`${questionInfo  ? 'mt-16' : ''}`}>
             <CardHeader>
-              <CardTitle>
-                {isComplexityScreen ? "Complejidad Estructural del Portafolio" : current.title}
+              <CardTitle className="flex items-center">
+                <span>
+                  {isComplexityScreen ? "Complejidad Estructural del Portafolio" : current.title}
+                </span>
+                {questionInfo && (
+                  <InfoCard 
+                    isOpen={showInfoCard}
+                    onToggle={() => setShowInfoCard(!showInfoCard)}
+                  />
+                )}
               </CardTitle>
             </CardHeader>
 
@@ -452,7 +470,28 @@ export default function DiagnosticRunner() {
             )}
           </Card>
         </div>
-      </main>
-    </div>
-  );
+
+        {/* Tarjeta de información al lado - solo si está abierta */}
+        {questionInfo && showInfoCard && (
+          <Card className={`h-fit ${questionInfo && !isComplexityScreen ? 'mt-16' : ''}`}>
+            <CardContent className="p-4 relative">
+              <button
+                onClick={() => setShowInfoCard(false)}
+                className="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Cerrar"
+                type="button"
+              >
+                <X size={16} className="text-gray-500" />
+              </button>
+              
+              <div className="pr-6 text-sm text-gray-700 leading-relaxed">
+                {questionInfo}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </main>
+  </div>
+ );
 }
