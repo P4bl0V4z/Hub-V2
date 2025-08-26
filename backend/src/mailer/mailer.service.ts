@@ -20,7 +20,7 @@ export class MailerService {
   }
 
   async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const url = `${this.config.get<string>('FRONTEND_URL')}/verificar?token=${token}`;
+    const url = `${this.config.get<string>('API_URL')}/auth/verify-email?token=${token}`;
 
     const html = `
       <h2>Bienvenido a BeLoop</h2>

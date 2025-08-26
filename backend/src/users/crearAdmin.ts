@@ -71,7 +71,7 @@ async function main() {
         empresa: { connect: { id: empresa.id } },
       },
     });
-    console.log('VinculaciÃ³n usuario-empresa creada.');
+    console.log('Vinculación usuario-empresa creada.');
   }
 
   const usuarioRolExistente = await prisma.usuarioRol.findFirst({

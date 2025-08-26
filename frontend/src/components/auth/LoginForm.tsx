@@ -9,21 +9,23 @@ import { Mail, Lock, ArrowRight, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import HelpTooltip from "@/components/HelpTooltip";
 import BeLoopIcon from "@/components/BeLoopIcons";
-import { login } from "@/lib/auth";
+import { login, bootstrapSession } from "@/lib/auth";
 
 interface LoginFormProps {
   onAdminAccess: () => void;
 }
 
+const API_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/+$/, "");
+
 const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!email || !password) {
       toast({
         title: "Error de ingreso",
@@ -32,16 +34,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       });
       return;
     }
-
     try {
+      // backend setea cookie httpOnly
       const data = await login(email, password);
-      localStorage.setItem("beloop_token", data.token);
-      localStorage.setItem("beloop_authenticated", "true");
-      localStorage.setItem("beloop_user_name", data.nombre || "");
-      localStorage.setItem("beloop_user_role", data.rol || "user");
-      if (window.beLoopLogin) (window as any).beLoopLogin();
+      // sincroniza banderas en LS para UI legacy
+      await bootstrapSession();
+
+      if ((window as any).beLoopLogin) (window as any).beLoopLogin();
       toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
-      navigate(data.rol === "admin" ? "/admin" : "/");
+
+      navigate(data?.rol === "admin" ? "/admin" : "/");
     } catch (err: any) {
       toast({
         title: "Error de autenticación",
@@ -50,6 +52,33 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       });
     }
   };
+
+const handleGoogleLogin = () => {
+  if (!API_URL) {
+    console.error("VITE_API_URL no está definido");
+    toast({
+      title: "Configuración faltante",
+      description: "VITE_API_URL no está configurado.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const url = new URL(window.location.href);
+
+  let from: string;
+  if (url.pathname.startsWith("/login")) {
+    const redirect = url.searchParams.get("redirect");
+    from = redirect && redirect.startsWith("/") ? redirect : "/";
+  } else {
+    from = url.pathname + url.search + url.hash;
+    if (!from || !from.startsWith("/")) from = "/";
+  }
+
+  setLoadingGoogle(true);
+  window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from)}`;
+};
+
 
   return (
     <>
@@ -96,14 +125,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
         <div className="space-y-4">
           <p className="text-xs text-center text-muted-foreground">o ingresar con</p>
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="w-full">
+            {/* ✅ Google */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+              aria-label="Ingresar con Google"
+              disabled={loadingGoogle}
+            >
               <BeLoopIcon name="gmail" size={16} className="mr-2" />
-              Gmail
+              Google
             </Button>
-            <Button variant="outline" className="w-full">
+
+            {/* Microsoft (deshabilitado por ahora)
+            <Button variant="outline" className="w-full" disabled>
               <BeLoopIcon name="microsoft" size={16} className="mr-2" />
               Microsoft
             </Button>
+            */}
           </div>
         </div>
       </CardContent>

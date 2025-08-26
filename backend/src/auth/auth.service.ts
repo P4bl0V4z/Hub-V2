@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../mailer/mailer.service';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -19,59 +20,56 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // ---------- REGISTRO ----------
   async register(data: RegisterDto) {
+    const email = data.email.toLowerCase();
+
     const existing = await this.prisma.usuario.findUnique({
-      where: { email: data.email },
+      where: { email },
     });
+    if (existing) throw new BadRequestException('Email ya registrado');
 
-    if (existing) {
-      throw new BadRequestException('Email ya registrado');
-    }
+    const pepper = this.config.get<string>('PASSWORD_PEPPER') ?? '';
+    const cost = Number(this.config.get('BCRYPT_COST') ?? 12);
+    const hashed = await bcrypt.hash(data.password + pepper, cost);
 
-    // 🔧 USAR PEPPER Y SALT ROUNDS CONSISTENTES
-    const pepper = this.config.get<string>('PASSWORD_PEPPER');
-    const saltRounds = Number(this.config.get<string>('BCRYPT_SALT_ROUNDS') ?? 12);
-    
-    if (!pepper) {
-      throw new Error('PASSWORD_PEPPER no configurado');
-    }
-
-    const payload = `${data.password}${pepper}`;
-    const hashed = await bcrypt.hash(payload, saltRounds);
-
-    // CAMBIOS EN GENERACION DE TOKEN
+    // token de verificación (JWT) + hash persistido
     const token = await this.jwtService.signAsync(
-      { email: data.email },
+      { email },
       {
         secret: this.config.get<string>('JWT_SECRET'),
         algorithm: 'HS256',
         expiresIn: '1d',
       },
     );
+    const tokenHash = createHash('sha256').update(token).digest('hex');
 
     await this.prisma.usuario.create({
       data: {
-        email: data.email,
+        email,
         password: hashed,
         nombre: data.nombre,
-        tokenVerificacion: token,
+        tokenVerificacion: tokenHash,
         activo: false,
         creadoEn: new Date(),
         verificadoEn: null,
       },
     });
 
-    await this.mailer.sendVerificationEmail(data.email, token);
-
+    await this.mailer.sendVerificationEmail(email, token);
     return { message: 'Usuario creado. Revisa tu email para activarlo.' };
   }
 
-  // CAMBIOS EN VERIFICACION DE CUENTA
+  // ---------- VERIFICACIÓN DE EMAIL ----------
   async verifyEmail(token: string) {
     if (!token) throw new BadRequestException('Token requerido');
 
     try {
-      const decoded = await this.jwtService.verifyAsync<{ email: string; iat: number; exp: number }>(token, {
+      const decoded = await this.jwtService.verifyAsync<{
+        email: string;
+        iat: number;
+        exp: number;
+      }>(token, {
         secret: this.config.get<string>('JWT_SECRET'),
         algorithms: ['HS256'],
         clockTolerance: 300,
@@ -80,22 +78,19 @@ export class AuthService {
       if (!decoded?.email) throw new BadRequestException('Token inválido');
 
       const usuario = await this.prisma.usuario.findUnique({
-        where: { email: decoded.email },
+        where: { email: decoded.email.toLowerCase() },
         select: { email: true, activo: true, tokenVerificacion: true },
       });
-
       if (!usuario) throw new BadRequestException('Token inválido');
+      if (usuario.activo) return { message: 'Cuenta ya verificada' };
 
-      if (usuario.activo) {
-        return { message: 'Cuenta ya verificada' };
-      }
-
-      if (!usuario.tokenVerificacion || usuario.tokenVerificacion !== token) {
+      const incomingHash = createHash('sha256').update(token).digest('hex');
+      if (!usuario.tokenVerificacion || usuario.tokenVerificacion !== incomingHash) {
         throw new BadRequestException('Token inválido o expirado');
       }
 
       await this.prisma.usuario.update({
-        where: { email: decoded.email },
+        where: { email: decoded.email.toLowerCase() },
         data: {
           activo: true,
           verificadoEn: new Date(),
@@ -104,58 +99,51 @@ export class AuthService {
       });
 
       return { message: 'Cuenta verificada correctamente' };
-    } catch (e) {
+    } catch {
       throw new BadRequestException('Token inválido o expirado');
     }
   }
 
+  // ---------- LOGIN LOCAL (sin firmar JWT aquí) ----------
   async login(email: string, password: string) {
     const usuario = await this.prisma.usuario.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase() },
       include: {
         empresas: {
           include: {
             empresa: true,
-            roles: {
-              include: {
-                rol: true,
-              },
-            },
+            roles: { include: { rol: true } },
           },
         },
       },
     });
 
-    if (!usuario || !usuario.activo || !usuario.password) {
-      throw new UnauthorizedException(
-        'Credenciales inválidas o usuario no verificado',
-      );
+    if (!usuario || !usuario.activo) {
+      throw new UnauthorizedException('Credenciales inválidas o usuario no verificado');
     }
 
     if (usuario.tokenVerificacion) {
       throw new UnauthorizedException('Cuenta no verificada');
     }
 
-    // 🔧 USAR PEPPER COMO EN EL SCRIPT DE CREACIÓN
-    const pepper = this.config.get<string>('PASSWORD_PEPPER');
-    if (!pepper) {
-      throw new Error('PASSWORD_PEPPER no configurado');
+    if (!usuario.password) {
+      throw new UnauthorizedException('Esta cuenta no tiene contraseña local. Inicia con Google/Microsoft.');
     }
-    
-    const payload = `${password}${pepper}`;
-    const passwordOk = await bcrypt.compare(payload, usuario.password);
 
+    const pepper = this.config.get<string>('PASSWORD_PEPPER') ?? '';
+    const passwordOk = await bcrypt.compare(password + pepper, usuario.password);
     if (!passwordOk) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payloadJWT = {
-      sub: usuario.id,
-      email: usuario.email,
-      tipoUsuario: usuario.tipoUsuario,
-    };
-
-    const token = this.jwtService.sign(payloadJWT);
+    try {
+      await this.prisma.usuario.update({
+        where: { id: usuario.id },
+        data: { lastLoginAt: new Date() },
+      });
+    } catch {
+      /* noop */
+    }
 
     const empresas = usuario.empresas.map((ue) => ({
       id: ue.empresa.id,
@@ -164,10 +152,58 @@ export class AuthService {
     }));
 
     return {
-      token,
-      nombre: usuario.nombre,
-      email: usuario.email,
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        tipoUsuario: usuario.tipoUsuario,
+      },
       empresas,
     };
   }
+
+  // ---------- OBTENER USUARIO DE SESIÓN ----------
+  async getSessionUser(userId: number, expand: string[] = []) {
+    const allow = new Set(['empresas', 'roles']);
+
+    const includeEmpresas = allow.has('empresas') && expand.includes('empresas');
+    const includeRoles = allow.has('roles') && expand.includes('roles');
+
+    const include: any = {};
+
+    if (includeEmpresas) {
+      include.empresas = {
+        include: {
+          empresa: { select: { id: true, nombre: true } },
+          ...(includeRoles
+            ? { roles: { include: { rol: { select: { id: true, nombre: true } } } } }
+            : { roles: false }),
+        },
+      };
+    }
+
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        tipoUsuario: true,
+        ...(includeEmpresas ? { empresas: true } : {}),
+      },
+    });
+
+    if (!user) return null;
+
+    if (includeEmpresas && Array.isArray(user.empresas)) {
+      (user as any).empresas = user.empresas.map((ue: any) => ({
+        id: ue.empresa.id,
+        nombre: ue.empresa.nombre,
+        roles: includeRoles ? ue.roles.map((r: any) => r.rol.nombre) : undefined,
+      }));
+    }
+
+    return user;
+  }
+
 }
