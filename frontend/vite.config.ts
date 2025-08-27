@@ -19,4 +19,9 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // ✅ Agregar configuración de testing
+  test: {
+    globals: true,
+    environment: 'jsdom',
+  },
 }));

@@ -20,7 +20,7 @@ import Modules from "./pages/Modules";
 import Academy from "./pages/Academy";
 import Compliance from "./pages/Compliance";
 import Register from "./pages/Register";
-import DiagnosticTest from "./pages/DiagnosticTest";
+import DiagnosticTest from "./pages/diagnostic/DiagnosticRunner";
 import GlobalSearch from "./components/GlobalSearch";
 import ChatAssistant from "./components/ChatAssistant";
 import VideoTutorialButton from "./components/VideoTutorialButton";

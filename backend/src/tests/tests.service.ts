@@ -8,7 +8,7 @@ export class TestsService {
   // Listar intentos incompletos para mostrar "Continuar o iniciar nuevo"
   async listIncompleteAttempts(userId: string, testId: string) {
     return this.prisma.testAttempt.findMany({
-      where: { userId, testId, completed: false },
+      where: { userId: parseInt(userId), testId: parseInt(testId), completed: false },
       orderBy: { startedAt: 'desc' },
     });
   }
@@ -17,8 +17,8 @@ export class TestsService {
   async createNewAttempt(userId: string, testId: string, label?: string, initialProgress?: Record<string, any>) {
     return this.prisma.testAttempt.create({
       data: {
-        userId,
-        testId,
+        userId: parseInt(userId),
+        testId: parseInt(testId),
         label,
         progress: initialProgress ?? {},
       },
@@ -28,7 +28,7 @@ export class TestsService {
   // Obtener intento por id (para continuar)
   async getAttemptOrThrow(userId: string, testId: string, attemptId: string) {
     const attempt = await this.prisma.testAttempt.findFirst({
-      where: { id: attemptId, userId, testId },
+      where: { id: parseInt(attemptId), userId: parseInt(userId), testId: parseInt(testId) },
     });
     if (!attempt) throw new NotFoundException('Intento no encontrado.');
     return attempt;
@@ -38,7 +38,7 @@ export class TestsService {
   async saveProgressByAttemptId(userId: string, testId: string, attemptId: string, progress: Record<string, any>) {
     await this.getAttemptOrThrow(userId, testId, attemptId);
     return this.prisma.testAttempt.update({
-      where: { id: attemptId },
+      where: { id: parseInt(attemptId) },
       data: { progress },
     });
   }
@@ -47,7 +47,7 @@ export class TestsService {
   async completeAttempt(userId: string, testId: string, attemptId: string) {
     await this.getAttemptOrThrow(userId, testId, attemptId);
     return this.prisma.testAttempt.update({
-      where: { id: attemptId },
+      where: { id: parseInt(attemptId) },
       data: { completed: true, completedAt: new Date() },
     });
   }
