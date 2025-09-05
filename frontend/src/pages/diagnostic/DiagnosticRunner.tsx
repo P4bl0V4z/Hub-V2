@@ -23,11 +23,14 @@ import {
   type ComplexityLevel,
 } from "./flow";
 
-// 👇 Importa la tarjeta única de Medición
+// Importa la tarjeta única de Medición
 import MedicionCard from "./flow/sections/MedicionCard";
 
 const STATE_KEY = "dt_state_v3";
 const SUMMARY_PATH = "/diagnostic/summary";
+
+// ⬇ NUEVO: clave donde guardaremos el payload del puntaje de complejidad en answers
+const KEY_TRAZ_COMPLEX = "Q_TRAZ_COMPLEX";
 
 const COMPLEXITY_QIDS: QuestionId[] = [
   "Q_TRAZ_FAMILIAS",
@@ -198,7 +201,7 @@ export default function DiagnosticRunner() {
       return;
     }
 
-    // ⬇️ CAMBIO: espejo Q_TRAZ_ENCARGADO → Q_ENCARGADO
+    //  CAMBIO: espejo Q_TRAZ_ENCARGADO → Q_ENCARGADO
     setState((s) => {
       const nextAnswers: Record<string, string> = { ...s.answers, [qid]: value };
       if (qid === "Q_TRAZ_ENCARGADO" && !nextAnswers.Q_ENCARGADO) {
@@ -218,7 +221,7 @@ export default function DiagnosticRunner() {
     return (opt.next ?? "END") as QuestionId;
   };
 
-  // ⬇️ Ajuste para considerar completa la sección si se salta Q_SG_DECLARADO
+  // ⬇Ajuste para considerar completa la sección si se salta Q_SG_DECLARADO
   const markSectionIfCompleted = (qid: QuestionId, answers: Record<string, string>) => {
     const section = QUESTIONS[qid].sectionKey;
     let ids = Object.values(QUESTIONS)
@@ -246,10 +249,36 @@ export default function DiagnosticRunner() {
 
     const qid = current.id;
     const value = state.answers[qid];
+
+    // ⬇NUEVO: al salir de la pantalla de complejidad, persistimos puntaje y avanzamos
+    if (qid === "Q_TRAZ_FAMILIAS") {
+      setState((s) => {
+        const answersWithScore = {
+          ...s.answers,
+          [KEY_TRAZ_COMPLEX]: JSON.stringify({
+            score: complexityAccum.total,
+            answered: complexityAccum.answered,
+          }),
+        };
+
+        const nextId = computeNextId(qid, value); // "Q_SG_ADHERIDO"
+        const sectionDone = markSectionIfCompleted(qid, answersWithScore);
+
+        return {
+          ...s,
+          answers: answersWithScore,
+          currentId: nextId,
+          history: [...s.history, qid],
+          sectionDone,
+        };
+      });
+      return;
+    }
+
     const nextId = computeNextId(qid, value);
 
     if (nextId === "END") {
-      // ✅ SIMPLIFICADO: computeOutcome ya maneja el override de medición automáticamente
+      // SIMPLIFICADO: computeOutcome ya maneja el override de medición automáticamente
       const finalOutcome = {
         ...computeOutcome({ ...state.answers }),
         decided_at: new Date().toISOString(),
@@ -397,14 +426,14 @@ export default function DiagnosticRunner() {
                     const qid: QuestionId = "Q_MEDICION_TODO";
                     const nextAnswers = { ...state.answers, [qid]: JSON.stringify(payload) };
 
-                    // ✅ SIMPLIFICADO: computeOutcome ya maneja la afectación REP automáticamente
+                    // SIMPLIFICADO: computeOutcome ya maneja la afectación REP automáticamente
                     const outcome = {
                       ...computeOutcome({ ...nextAnswers }),
                       decided_at: new Date().toISOString(),
                       tag: "medicion" as const,
                     };
 
-                    // ✅ Umbral mayor o igual a 300 kg para ruteo
+                    //  Umbral mayor o igual a 300 kg para ruteo
                     const toTraz = (payload?.totalKg ?? 0) >= 300;
 
                     // Limpiar respuestas de la sección objetivo para empezar desde el inicio
