@@ -4,6 +4,7 @@ export * from "./types";
 export * from "./constants";
 export { computeOutcome } from "./computeOutcome";
 
+
 import type { QuestionsMap, QuestionId } from "./types";
 import { antecedentes } from "./sections/Antecedentes";
 import { trazabilidad } from "./sections/Trazabilidad";

@@ -1,8 +1,9 @@
 // src/pages/diagnostic/DiagnosticSummary.tsx
 // -----------------------------------------------------------------------------
-// SUMARIO (v3) — actualizado:
-// - "Registro interno": Afectación Ley REP (derivada de respuestas).
-// - "Trazabilidad – Línea Base": Muestra PUNTAJE (answers.Q_TRAZ_COMPLEX) + las 6 respuestas.
+// SUMARIO (v4) — actualizado:
+// - "Registro interno": Tarjeta simple de Afectación REP
+// - "Ventanilla Única – RETC": Componente VuRetcCard dinámico según estado
+// - "Trazabilidad – Línea Base": Muestra PUNTAJE + las 6 respuestas.
 // - "Preguntas y respuestas": todo lo demás (excluye las 6 de complejidad).
 // -----------------------------------------------------------------------------
 
@@ -10,36 +11,36 @@ import { useMemo } from "react";
 import Sidebar from "../../components/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { QUESTIONS, SECTIONS } from "./flow";
+import { QUESTIONS, SECTIONS, computeOutcome } from "./flow";
+import { VuRetcCard } from "./components/VuRetcCards";
 
 const STATE_KEY = "dt_state_v3";
 
-// Mapea estandarización → madurez (solo usada para mostrar extra en Q_TRAZ_ESTAND)
-function madurezFromEstand(v?: string | null) {
-  if (!v) return null;
-  if (v === "optimo" || v === "bueno") return "Empresa Avanzada";
-  if (v === "regular") return "Empresa en Transición";
-  if (v === "limitado" || v === "critico") return "Empresa Inicial";
-  return null;
-}
-
-// Safe parse para JSON guardado en answers (p.ej. Q_MEDICION_TODO / Q_TRAZ_COMPLEX)
+// Safe parse para JSON guardado en answers
 function safeParse<T>(s?: string): T | undefined {
   try { return s ? (JSON.parse(s) as T) : undefined; } catch { return undefined; }
 }
 
-type MedicionPayload = { totalKg?: number };
 type TrazComplexPayload = { score?: number; answered?: number };
 
-// IDs de la Línea Base de Trazabilidad (familias → componentes)
+// IDs de la Línea Base de Trazabilidad
 const COMPLEXITY_QIDS = [
   "Q_TRAZ_FAMILIAS",
-  "Q_TRAZ_LINEAS",
+  "Q_TRAZ_LINEAS", 
   "Q_TRAZ_CATEGORIAS",
   "Q_TRAZ_SKUS",
   "Q_TRAZ_NIVELES",
   "Q_TRAZ_COMPONENTES",
 ] as const;
+
+// Mapear resultado de computeOutcome a tipos del componente
+function mapVuStage(stage: string | null): "inicial" | "transicion" | "avanzada" | null {
+  if (!stage) return null;
+  if (stage === "Empresa Inicial") return "inicial";
+  if (stage === "Empresa en Transición") return "transicion";
+  if (stage === "Empresa Avanzada") return "avanzada";
+  return null;
+}
 
 export default function DiagnosticSummary() {
   const state = useMemo(() => {
@@ -52,33 +53,27 @@ export default function DiagnosticSummary() {
 
   const answers: Record<string, string> = state?.answers ?? {};
 
-  // Afectación REP (derivada de respuestas)
-  const repStatus: "Sí" | "No" | "Indeterminado" = useMemo(() => {
-    if (answers.Q_SIZE === "micro") return "No";
-    const comercializa = answers.Q_COMERCIALIZA;          // "si" | "no"
-    const kg300 = answers.Q_KG300;                        // "si" | "no" | "ns"
-    const medicion = safeParse<MedicionPayload>(answers.Q_MEDICION_TODO);
-    const totalKg = medicion?.totalKg;
+  // Usar la lógica oficial de computeOutcome
+  const outcome = useMemo(() => computeOutcome(answers), [answers]);
 
-    if (comercializa === "no") return "No";
-    if (kg300 === "si") return "Sí";
-    if (kg300 === "no") return "No";
-
-    if (kg300 === "ns") {
-      if (typeof totalKg === "number" && Number.isFinite(totalKg)) {
-        return totalKg >= 300 ? "Sí" : "No";
-      }
-      return "Indeterminado";
-    }
-    return "Indeterminado";
+  // Calcular progreso VU-RETC
+  const vuProgress = useMemo(() => {
+    let completedSteps = 0;
+    if (answers.Q_VU_REG === "si") completedSteps++;
+    if (answers.Q_VU_APERTURA === "si") completedSteps++;
+    if (answers.Q_VU_DECL === "si") completedSteps++;
+    return completedSteps;
   }, [answers]);
+
+  // Mapear stage para el componente
+  const vuStage = useMemo(() => mapVuStage(outcome.vu_stage), [outcome.vu_stage]);
 
   // Puntaje de complejidad guardado desde el Runner
   const trazComplex = useMemo(() => {
     return safeParse<TrazComplexPayload>(answers.Q_TRAZ_COMPLEX);
   }, [answers]);
 
-  // Lista de preguntas para "todo lo demás" (excluye las 6 de complejidad y END)
+  // Lista de preguntas para "todo lo demás"
   const qList = useMemo(
     () =>
       Object.values(QUESTIONS)
@@ -101,7 +96,7 @@ export default function DiagnosticSummary() {
         <div className="mx-auto max-w-4xl space-y-6">
           <h1 className="text-3xl font-bold">Resumen del Diagnóstico</h1>
 
-          {/* Registro interno: SOLO Afectación Ley REP */}
+          {/* 1) Registro interno - Tarjeta simple */}
           <Card>
             <CardHeader>
               <CardTitle>Registro interno</CardTitle>
@@ -110,24 +105,29 @@ export default function DiagnosticSummary() {
               <div className="rounded-md border p-4">
                 <div className="text-sm">
                   <div className="mb-1 font-medium">Afectación Ley REP</div>
-                  <Badge>{repStatus}</Badge>
+                  <Badge>{outcome.afecta_rep}</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Trazabilidad – Línea Base: puntaje + 6 respuestas */}
+          {/* 2) Ventanilla Única – RETC - Componente VuRetcCard */}
+          {vuStage && (
+            <VuRetcCard stage={vuStage} completedSteps={vuProgress} />
+          )}
+
+          {/* 3) Trazabilidad – Línea Base */}
           <Card>
             <CardHeader>
               <CardTitle>Trazabilidad – Línea Base</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Encabezado compacto con puntaje */}
+              {/* Encabezado con puntaje */}
               <div className="rounded-md border p-3 text-sm flex items-center justify-between">
                 <div className="font-medium">Puntaje estructural del portafolio</div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">
-                    {trazComplex?.score !== undefined ? trazComplex.score : "—"}
+                    {outcome.traz_complex_score !== null ? outcome.traz_complex_score : "—"}
                   </Badge>
                   {typeof trazComplex?.answered === "number" && (
                     <span className="text-xs text-muted-foreground">
@@ -157,7 +157,7 @@ export default function DiagnosticSummary() {
             </CardContent>
           </Card>
 
-          {/* Preguntas y respuestas — el resto del test */}
+          {/* 4) Preguntas y respuestas */}
           <Card>
             <CardHeader>
               <CardTitle>Preguntas y respuestas</CardTitle>
@@ -168,10 +168,9 @@ export default function DiagnosticSummary() {
                 const val = answers[q.id] ?? "—";
                 let label = labelFor(q.id, val);
 
-                // Extra visual en estandarización
-                if (q.id === "Q_TRAZ_ESTAND" && val !== "—") {
-                  const madurez = madurezFromEstand(val);
-                  if (madurez) label = `${label} • ${madurez}`;
+                // Extra visual en estandarización usando outcome
+                if (q.id === "Q_TRAZ_ESTAND" && val !== "—" && outcome.traz_madurez) {
+                  label = `${label} • ${outcome.traz_madurez}`;
                 }
 
                 return (
