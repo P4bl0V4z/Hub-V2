@@ -41,6 +41,17 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
   });
   const [compDraft, setCompDraft] = useState<CompDraft>({});
 
+  // 👇 NEW: controlar qué productos están desplegados
+  const [openProducts, setOpenProducts] = useState<Set<number>>(new Set());
+  const toggleOpen = (idx: number) => {
+    setOpenProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
   // ---------- Validación producto ----------
   const canSaveProd = useMemo(() => {
     const hasTipo =
@@ -113,6 +124,12 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
   const removeProduct = (idx: number) => {
     setProductos((list) => list.filter((_, i) => i !== idx));
     if (editingIndex === idx) setEditingIndex(null);
+    // opcional: cerrar si estaba abierto
+    setOpenProducts((prev) => {
+      const next = new Set(prev);
+      next.delete(idx);
+      return next;
+    });
   };
 
   // ---------- Submit global ----------
@@ -128,10 +145,8 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
       totalKgPorMaterial: totalsGlobal.totalKgPorMaterial,
     };
 
-    // guardar en estado superior si corresponde
     onSubmit?.(payload);
 
-    // decidir siguiente sección y navegar
     const next = decideNextSection(payload.totalKg); // "trazabilidad" | "vu_retc"
     goTo?.(next);
   };
@@ -140,87 +155,107 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
   return (
     <div className="space-y-8">
       {/* Lista de productos guardados */}
-      {productos.map((p, idx) => (
-        <section key={idx} className="rounded-2xl border p-5 shadow-sm bg-white/70">
-          <div className="mb-2 font-semibold uppercase">
-            Producto {String(idx + 1).padStart(2, "0")}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm">
-              <div className="font-semibold">{p.nombre}</div>
-              <div className="text-xs opacity-70">
-                {p.familia ? TAXONOMY[p.familia].label : "-"} •{" "}
-                {p.familia === "otro" || p.tipo === "otro"
-                  ? p.tipoOtro
-                  : p.familia
-                  ? TAXONOMY[p.familia].types.find((t) => t.value === p.tipo)?.label
-                  : "-"}
-              </div>
+      {productos.map((p, idx) => {
+        const isOpen = openProducts.has(idx);
+        return (
+          <section key={idx} className="rounded-2xl border p-5 shadow-sm bg-white/70">
+            <div className="mb-2 font-semibold uppercase">
+              Producto {String(idx + 1).padStart(2, "0")}
             </div>
-            <div className="text-sm">
-              <span className="opacity-70">Ventas:</span>{" "}
-              <span className="font-semibold">
-                {(p.ventas ?? 0).toLocaleString()} un
-              </span>
-            </div>
-          </div>
 
-          {p.componentes.length > 0 && (
-            <div className="mt-4">
-              {p.componentes.map((c, i) => (
-                <div key={i} className="flex items-center justify-between border-t py-2 text-sm">
-                  <div className="opacity-70">Componente {String(i + 1).padStart(2, "0")}</div>
-                  <div className="flex-1 px-4">{c.nombre}</div>
-                  <div className="w-40 truncate">{MATERIALS[c.material].label}</div>
-                  <div className="w-48 truncate">
-                    {MATERIALS[c.material].types.find((t) => t.value === c.tipoMaterial)?.label}
-                  </div>
-                  <div className="w-32 text-right">{c.peso.toLocaleString()} g</div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-semibold">{p.nombre}</div>
+                <div className="text-xs opacity-70">
+                  {p.familia ? TAXONOMY[p.familia].label : "-"} •{" "}
+                  {p.familia === "otro" || p.tipo === "otro"
+                    ? p.tipoOtro
+                    : p.familia
+                    ? TAXONOMY[p.familia].types.find((t) => t.value === p.tipo)?.label
+                    : "-"}
                 </div>
-              ))}
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div>
+                  <span className="opacity-70">Ventas:</span>{" "}
+                  <span className="font-semibold">
+                    {(p.ventas ?? 0).toLocaleString()} un
+                  </span>
+                </div>
+
+                {/* 👇 NEW: botón para desplegar/ocultar componentes */}
+                {p.componentes.length > 0 && editingIndex !== idx && (
+                  <button
+                    className="rounded-xl border px-3 py-2"
+                    onClick={() => toggleOpen(idx)}
+                    aria-expanded={isOpen}
+                    aria-controls={`prod-${idx}-componentes`}
+                    title={isOpen ? "Ocultar componentes" : "Ver componentes"}
+                  >
+                    <span className="inline-block mr-1">{isOpen ? "▾" : "▸"}</span>
+                    {isOpen ? "Ocultar componentes" : `Ver componentes (${p.componentes.length})`}
+                  </button>
+                )}
+              </div>
             </div>
-          )}
 
-          <div className="mt-3 flex gap-3">
-            {editingIndex === idx ? (
-              <button className="rounded-xl border px-3 py-2" onClick={closeEditing}>
-                Cerrar edición
-              </button>
-            ) : (
-              <button className="rounded-xl border px-3 py-2" onClick={() => setEditingIndex(idx)}>
-                {p.componentes.length ? "Editar componentes" : "Agregar componentes"}
-              </button>
-            )}
-            <button className="rounded-xl border px-3 py-2" onClick={() => removeProduct(idx)}>
-              Eliminar producto
-            </button>
-          </div>
-
-          {editingIndex !== idx && p.kgTotales != null && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-              <div className="rounded-lg border p-3">
-                <div className="opacity-70">Peso unidad</div>
-                <div className="font-semibold">{p.pesoUnidadGr?.toFixed(2)} g</div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="opacity-70">Kg totales</div>
-                <div className="font-semibold">{p.kgTotales?.toFixed(3)} kg</div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="opacity-70">Kg por material</div>
-                <div className="text-xs">
-                  {Object.entries(p.kgPorMaterial ?? {}).map(([k, v]) => (
-                    <div key={k}>
-                      {MATERIALS[k as MaterialKey].label}: <b>{(v ?? 0).toFixed(3)} kg</b>
+            {/* 👇 UPDATED: componentes colapsables (por defecto ocultos) */}
+            {isOpen && p.componentes.length > 0 && editingIndex !== idx && (
+              <div id={`prod-${idx}-componentes`} className="mt-4">
+                {p.componentes.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between border-t py-2 text-sm">
+                    <div className="opacity-70">Componente {String(i + 1).padStart(2, "0")}</div>
+                    <div className="flex-1 px-4">{c.nombre}</div>
+                    <div className="w-40 truncate">{MATERIALS[c.material].label}</div>
+                    <div className="w-48 truncate">
+                      {MATERIALS[c.material].types.find((t) => t.value === c.tipoMaterial)?.label}
                     </div>
-                  ))}
+                    <div className="w-32 text-right">{c.peso.toLocaleString()} g</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 flex gap-3">
+              {editingIndex === idx ? (
+                <button className="rounded-xl border px-3 py-2" onClick={closeEditing}>
+                  Cerrar edición
+                </button>
+              ) : (
+                <button className="rounded-xl border px-3 py-2" onClick={() => setEditingIndex(idx)}>
+                  {p.componentes.length ? "Editar componentes" : "Agregar componentes"}
+                </button>
+              )}
+              <button className="rounded-xl border px-3 py-2" onClick={() => removeProduct(idx)}>
+                Eliminar producto
+              </button>
+            </div>
+
+            {editingIndex !== idx && p.kgTotales != null && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div className="rounded-lg border p-3">
+                  <div className="opacity-70">Peso unidad</div>
+                  <div className="font-semibold">{p.pesoUnidadGr?.toFixed(2)} g</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="opacity-70">Kg totales</div>
+                  <div className="font-semibold">{p.kgTotales?.toFixed(3)} kg</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="opacity-70">Kg por material</div>
+                  <div className="text-xs">
+                    {Object.entries(p.kgPorMaterial ?? {}).map(([k, v]) => (
+                      <div key={k}>
+                        {MATERIALS[k as MaterialKey].label}: <b>{(v ?? 0).toFixed(3)} kg</b>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </section>
-      ))}
+            )}
+          </section>
+        );
+      })}
 
       {/* Formulario de producto */}
       {editingIndex === null && (
@@ -448,7 +483,7 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
             <div className="opacity-70">Productos</div>
             <div className="font-semibold">{productos.length}</div>
           </div>
-        <div className="rounded-lg border p-3">
+          <div className="rounded-lg border p-3">
             <div className="opacity-70">Total Kg</div>
             <div className="font-semibold">{totalsGlobal.totalKg.toFixed(3)} kg</div>
           </div>

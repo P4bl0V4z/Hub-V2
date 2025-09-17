@@ -30,13 +30,13 @@ export function computeOutcome(answers: Record<string, string>) {
   const encargado = answers.Q_ENCARGADO;
   const plan = answers.Q_PLAN;
 
-  // Trazabilidad (mapeo informativo de madurez)
+  // Trazabilidad (mapeo informativo de madurez) - CORREGIDO
   const traz_estand = (answers.Q_TRAZ_ESTAND ?? null) as string | null;
   let traz_madurez: "Empresa Avanzada" | "Empresa en Transición" | "Empresa Inicial" | null = null;
   if (traz_estand) {
-    if (traz_estand === "optimo" || traz_estand === "bueno") {
+    if (traz_estand === "optimo") {
       traz_madurez = "Empresa Avanzada";
-    } else if (traz_estand === "regular") {
+    } else if (traz_estand === "bueno" || traz_estand === "regular") {
       traz_madurez = "Empresa en Transición";
     } else if (traz_estand === "limitado" || traz_estand === "critico") {
       traz_madurez = "Empresa Inicial";
@@ -56,12 +56,41 @@ export function computeOutcome(answers: Record<string, string>) {
     }
   }
 
-  // === Etapa VU (solo si respondieron el subflujo VU) ===
+  // === Etapa VU - LÓGICA ESCALONADA CORREGIDA ===
   let vu_stage: "Empresa Inicial" | "Empresa en Transición" | "Empresa Avanzada" | null = null;
-  if (vu_reg === "no") vu_stage = "Empresa Inicial";
-  if (vu_reg === "si" && vu_ap === "no") vu_stage = "Empresa en Transición";
-  if (vu_reg === "si" && vu_ap === "si" && vu_dec === "no") vu_stage = "Empresa en Transición";
-  if (vu_reg === "si" && vu_ap === "si" && vu_dec === "si") vu_stage = "Empresa Avanzada";
+  
+  // Solo evaluar VU si tenemos respuesta a la primera pregunta
+  if (vu_reg !== undefined) {
+    if (vu_reg === "no") {
+      // Si no está registrado → Empresa Inicial (TERMINA AQUÍ)
+      vu_stage = "Empresa Inicial";
+    } else if (vu_reg === "si") {
+      // Si está registrado, evaluar apertura sectorial
+      if (vu_ap !== undefined) {
+        if (vu_ap === "no") {
+          // Registrado pero sin aperturas → Empresa en Transición
+          vu_stage = "Empresa en Transición";
+        } else if (vu_ap === "si") {
+          // Registrado con aperturas, evaluar declaraciones
+          if (vu_dec !== undefined) {
+            if (vu_dec === "si") {
+              // Todo completado → Empresa Avanzada
+              vu_stage = "Empresa Avanzada";
+            } else {
+              // Registrado, con aperturas, pero sin declarar → Empresa en Transición
+              vu_stage = "Empresa en Transición";
+            }
+          } else {
+            // Sin respuesta a declaraciones, asumir en transición
+            vu_stage = "Empresa en Transición";
+          }
+        }
+      } else {
+        // Sin respuesta a aperturas, asumir en transición
+        vu_stage = "Empresa en Transición";
+      }
+    }
+  }
 
   // ======= Complejidad estructural (score ponderado y nivel) =======
   type CKey = keyof typeof COMPLEXITY_WEIGHTS;

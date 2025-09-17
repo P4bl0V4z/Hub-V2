@@ -2,10 +2,10 @@
 import { QuestionsMap } from "../types";
 
 /**
- * Sección VU-RETC
- * - Si el usuario ya respondió el encargado en Trazabilidad (Q_TRAZ_ENCARGADO)
- *   o previamente en esta misma sección (Q_ENCARGADO), se salta esa pantalla.
- * - Si no existe respuesta previa, se pregunta Q_ENCARGADO al final.
+ * Sección VU-RETC con flujo escalonado
+ * - Si responde "No" a registro → Preguntamos Encargado y luego termina (Empresa Inicial)
+ * - Si responde "No" a aperturas → Empresa en Transición (termina test)
+ * - Solo llega a declaraciones si tiene registro Y aperturas
  */
 export const vu_retc: QuestionsMap = {
   Q_VU_REG: {
@@ -14,11 +14,16 @@ export const vu_retc: QuestionsMap = {
     title: "¿Estás registrado en Ventanilla Única (RETC)?",
     type: "single",
     options: [
-      { label: "Sí", value: "si", next: "Q_VU_APERTURA" },
+      { 
+        label: "Sí", 
+        value: "si", 
+        next: "Q_VU_APERTURA" 
+      },
       {
         label: "No",
         value: "no",
-        next: (_v, a) => (a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO) ? "END" : "Q_ENCARGADO",
+        // Si NO está registrado, preguntamos por Encargado si no se respondió antes
+        next: (_v, a) => (a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO) ? "END" : "Q_ENCARGADO"
       },
     ],
     validate: (a) => (!a.Q_VU_REG ? "Selecciona una opción." : null),
@@ -27,11 +32,20 @@ export const vu_retc: QuestionsMap = {
   Q_VU_APERTURA: {
     id: "Q_VU_APERTURA",
     sectionKey: "vu_retc",
-    title: "¿Abriste el VU-RETC este año?",
+    title: "¿Has aperturado sectoriales?",
     type: "single",
     options: [
-      { label: "Sí", value: "si", next: "Q_VU_DECL" },
-      { label: "No", value: "no", next: "Q_VU_DECL" },
+      { 
+        label: "Sí", 
+        value: "si", 
+        next: "Q_VU_DECL" 
+      },
+      { 
+        label: "No", 
+        value: "no", 
+        // FLUJO ESCALONADO: Si no tiene aperturas → termina (Empresa en Transición)
+        next: (_v, a) => (a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO) ? "END" : "Q_ENCARGADO"
+      },
     ],
     validate: (a) => (!a.Q_VU_APERTURA ? "Selecciona una opción." : null),
   },
@@ -45,11 +59,13 @@ export const vu_retc: QuestionsMap = {
       {
         label: "Sí",
         value: "si",
+        // Empresa Avanzada
         next: (_v, a) => (a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO) ? "END" : "Q_ENCARGADO",
       },
       {
         label: "No",
         value: "no",
+        // Empresa en Transición
         next: (_v, a) => (a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO) ? "END" : "Q_ENCARGADO",
       },
     ],
