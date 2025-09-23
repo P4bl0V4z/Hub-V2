@@ -8,6 +8,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// === NUEVO: enum de niveles de acceso ===
+enum NivelAcceso {
+  SIN_DEFINIR
+  SIN_ACCESO
+  VER
+  EDITAR
+}
+
+// === NUEVO: catálogo global de objetos del sistema (solo BeLoop los administra) ===
+model ObjetoSistema {
+  id          Int             @id @default(autoincrement())
+  key         String          @unique      // ej: "usuarios", "empresas", "reportes"
+  nombre      String
+  descripcion String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt     @map("updated_at")
+
+  rolesAcceso RolAcceso[]
+}
+
+// === NUEVO: permisos de un rol sobre un objeto ===
+model RolAcceso {
+  id              Int            @id @default(autoincrement())
+  rolId           Int            @map("rol_id")
+  objetoSistemaId Int            @map("objeto_sistema_id")
+  nivel           NivelAcceso    @default(SIN_DEFINIR)
+
+  rol    Rol           @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  objeto ObjetoSistema @relation(fields: [objetoSistemaId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, objetoSistemaId])
+  @@index([objetoSistemaId])
+  @@index([nivel])
+}
+
+// ====== TUS MODELOS ORIGINALES (sin cambios estructurales) ======
+
 model Usuario {
   id                Int              @id @default(autoincrement())
   email             String           @unique
@@ -24,7 +61,9 @@ model Usuario {
   avatarUrl         String?          @map("avatar_url")
   lastLoginAt       DateTime?        @map("last_login_at")
   empresas          UsuarioEmpresa[]
-  testAttempts TestAttempt[]
+  testAttempts      TestAttempt[]
+
+  @@index([email])
 }
 
 model Empresa {
@@ -33,6 +72,9 @@ model Empresa {
   creadoEn         DateTime         @default(now()) @map("creado_en")
   esEmpresaMaestra Boolean          @default(false)
   usuarios         UsuarioEmpresa[]
+
+  @@index([esEmpresaMaestra])
+  @@unique([nombre])
 }
 
 model Rol {
@@ -41,6 +83,8 @@ model Rol {
   descripcion        String?
   soloEmpresaMaestra Boolean      @default(false)
   usuarios           UsuarioRol[]
+  // relación inversa para permisos
+  rolesAcceso        RolAcceso[]
 }
 
 model UsuarioEmpresa {
@@ -52,6 +96,8 @@ model UsuarioEmpresa {
   roles     UsuarioRol[]
 
   @@unique([usuarioId, empresaId])
+  @@index([empresaId])
+  @@index([usuarioId])
 }
 
 model UsuarioRol {
@@ -62,11 +108,13 @@ model UsuarioRol {
   usuarioEmpresa   UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
 
   @@unique([usuarioEmpresaId, rolId])
+  @@index([rolId])
 }
+
 model TestAttempt {
   id          Int       @id @default(autoincrement())
   userId      Int
-  testId      Int     
+  testId      Int
   label       String?
   startedAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -74,6 +122,7 @@ model TestAttempt {
   completedAt DateTime?
   progress    Json      @db.JsonB
   user        Usuario   @relation(fields: [userId], references: [id])
+
   @@index([userId, testId, completed])
   @@index([testId, completedAt])
 }
