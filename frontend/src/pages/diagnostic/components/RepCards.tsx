@@ -93,10 +93,10 @@ export function RepCard({ status, completedSteps = 0 }: RepCardProps) {
         {/* Contenido expandible */}
         {isExpanded && (
           <div className="p-6 space-y-6">
-            {/* Sección de Resultados */}
+            {/* Sección de Resultados - Siempre se muestra */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                <div className={`w-8 h-8 ${config.dotColor === 'bg-green-500' ? 'bg-green-500' : config.dotColor === 'bg-yellow-500' ? 'bg-yellow-500' : 'bg-red-500'} rounded-lg flex items-center justify-center`}>
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -123,162 +123,167 @@ export function RepCard({ status, completedSteps = 0 }: RepCardProps) {
               </p>
             </div>
 
-            {/* Estado de Cumplimiento */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-white" />
-                </div>
+            {/* Estado de Cumplimiento y Recomendaciones - SOLO para empresas afectas */}
+            {status !== "no_afecto" && (
+              <>
+                {/* Estado de Cumplimiento */}
                 <div>
-                  <h3 className="font-semibold text-gray-900">
-                    ESTADO DE CUMPLIMIENTO
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Basado En Sus Respuestas, Presentamos Una Evaluación Del
-                    Nivel De Cumplimiento De Su Empresa Respecto A Los
-                    Distintos Hitos Establecidos, Identificando Avances Y Áreas
-                    Por Mejorar.
-                  </p>
-                </div>
-              </div>
-
-              {/* Tarjeta CUMPLIMIENTO REP */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-semibold">CUMPLIMIENTO REP</h4>
-                    <p className="text-sm text-gray-600">
-                      RESUMEN DEL CUMPLIMIENTO:
-                    </p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-8 h-8 ${config.dotColor === 'bg-green-500' ? 'bg-green-500' : config.dotColor === 'bg-yellow-500' ? 'bg-yellow-500' : 'bg-red-500'} rounded-lg flex items-center justify-center`}>
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        ESTADO DE CUMPLIMIENTO
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Basado En Sus Respuestas, Presentamos Una Evaluación Del
+                        Nivel De Cumplimiento De Su Empresa Respecto A Los
+                        Distintos Hitos Establecidos, Identificando Avances Y Áreas
+                        Por Mejorar.
+                      </p>
+                    </div>
                   </div>
-                  <Badge className={config.badgeClass}>{config.badgeText}</Badge>
+
+                  {/* Tarjeta CUMPLIMIENTO REP */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-semibold">CUMPLIMIENTO REP</h4>
+                        <p className="text-sm text-gray-600">
+                          RESUMEN DEL CUMPLIMIENTO:
+                        </p>
+                      </div>
+                      <Badge className={config.badgeClass}>{config.badgeText}</Badge>
+                    </div>
+
+                    {/* Barra de progreso dinámica según status */}
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                      <div
+                        className={`${config.progressColor} h-3 rounded-full transition-all duration-300`}
+                        style={{ width: `${config.progressWidth}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Barra de progreso dinámica según status */}
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                  <div
-                    className={`${config.progressColor} h-3 rounded-full transition-all duration-300`}
-                    style={{ width: `${config.progressWidth}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Recomendaciones */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-white" />
-                </div>
+                {/* Recomendaciones */}
                 <div>
-                  <h3 className="font-semibold text-gray-900">
-                    RECOMENDACIONES INMEDIATAS
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    ¿Qué Hacer? - Ventanilla Única RETC - Acciones Prioritarias
-                    Para Mejorar Su Cumplimiento
-                  </p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-8 h-8 ${config.dotColor === 'bg-green-500' ? 'bg-green-500' : config.dotColor === 'bg-yellow-500' ? 'bg-yellow-500' : 'bg-red-500'} rounded-lg flex items-center justify-center`}>
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        RECOMENDACIONES INMEDIATAS
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        ¿Qué Hacer? - Ventanilla Única RETC - Acciones Prioritarias
+                        Para Mejorar Su Cumplimiento
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* TU RUTA CUMPLIMIENTO REP */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">
+                          TU RUTA CUMPLIMIENTO REP
+                        </h4>
+                        <p className="text-sm text-gray-600">¿QUÉ HACER?</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-black rounded-sm" />
+                        <span className="text-sm font-medium">
+                          {completedSteps} DE 5 HITOS COMPLETADOS
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Barra visual de etapas */}
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="w-8 h-4 bg-black rounded-sm" />
+                        <div className="w-8 h-4 bg-red-500 rounded-sm" />
+                        <div className="w-8 h-4 bg-orange-500 rounded-sm" />
+                        <div className="w-8 h-4 bg-yellow-400 rounded-sm" />
+                        <div className="w-8 h-4 bg-green-500 rounded-sm" />
+                      </div>
+                      <div className="w-full bg-gray-300 h-2 rounded-full relative">
+                        <div className="w-2 h-2 bg-black rounded-full absolute left-0 top-0 transform -translate-y-0.5" />
+                      </div>
+                    </div>
+
+                    {/* Lista de pasos */}
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-4 h-4 bg-black rounded-full mt-1 flex-shrink-0" />
+                        <div>
+                          <h5 className="font-medium text-sm">
+                            RUTA CUMPLIMIENTO REP
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            Modelo De Trazabilidad De Residuos Inicial (Regularizar
+                            Ventanilla Única RETC) Y Generar Una Ruta REP Interna A
+                            Nivel Operacional Y Estratégico).
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-4 h-4 bg-red-500 rounded-full mt-1 flex-shrink-0" />
+                        <div>
+                          <h5 className="font-medium text-sm">
+                            RUTA CUMPLIMIENTO REP
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            Levantar Línea Base De Residuos De Productos
+                            Prioritarios
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-4 h-4 bg-orange-500 rounded-full mt-1 flex-shrink-0" />
+                        <div>
+                          <h5 className="font-medium text-sm">
+                            RUTA CUMPLIMIENTO REP
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            Operar Bajo Un Sistema De Gestión REP
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-4 h-4 bg-yellow-400 rounded-full mt-1 flex-shrink-0" />
+                        <div>
+                          <h5 className="font-medium text-sm">
+                            RUTA CUMPLIMIENTO REP
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            Modelo De Trazabilidad Avanzado
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-4 h-4 bg-green-500 rounded-full mt-1 flex-shrink-0" />
+                        <div>
+                          <h5 className="font-medium text-sm">
+                            RUTA CUMPLIMIENTO REP
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            Chequeos Validados En Auditorías
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* TU RUTA CUMPLIMIENTO REP */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      TU RUTA CUMPLIMIENTO REP
-                    </h4>
-                    <p className="text-sm text-gray-600">¿QUÉ HACER?</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-black rounded-sm" />
-                    <span className="text-sm font-medium">
-                      {completedSteps} DE 5 HITOS COMPLETADOS
-                    </span>
-                  </div>
-                </div>
-
-                {/* Barra visual de etapas */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-8 h-4 bg-black rounded-sm" />
-                    <div className="w-8 h-4 bg-red-500 rounded-sm" />
-                    <div className="w-8 h-4 bg-orange-500 rounded-sm" />
-                    <div className="w-8 h-4 bg-yellow-400 rounded-sm" />
-                    <div className="w-8 h-4 bg-green-500 rounded-sm" />
-                  </div>
-                  <div className="w-full bg-gray-300 h-2 rounded-full relative">
-                    <div className="w-2 h-2 bg-black rounded-full absolute left-0 top-0 transform -translate-y-0.5" />
-                  </div>
-                </div>
-
-                {/* Lista de pasos */}
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-4 h-4 bg-black rounded-full mt-1 flex-shrink-0" />
-                    <div>
-                      <h5 className="font-medium text-sm">
-                        RUTA CUMPLIMIENTO REP
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        Modelo De Trazabilidad De Residuos Inicial (Regularizar
-                        Ventanilla Única RETC) Y Generar Una Ruta REP Interna A
-                        Nivel Operacional Y Estratégico).
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-4 h-4 bg-red-500 rounded-full mt-1 flex-shrink-0" />
-                    <div>
-                      <h5 className="font-medium text-sm">
-                        RUTA CUMPLIMIENTO REP
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        Levantar Línea Base De Residuos De Productos
-                        Prioritarios
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-4 h-4 bg-orange-500 rounded-full mt-1 flex-shrink-0" />
-                    <div>
-                      <h5 className="font-medium text-sm">
-                        RUTA CUMPLIMIENTO REP
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        Operar Bajo Un Sistema De Gestión REP
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-4 h-4 bg-yellow-400 rounded-full mt-1 flex-shrink-0" />
-                    <div>
-                      <h5 className="font-medium text-sm">
-                        RUTA CUMPLIMIENTO REP
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        Modelo De Trazabilidad Avanzado
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-4 h-4 bg-green-500 rounded-full mt-1 flex-shrink-0" />
-                    <div>
-                      <h5 className="font-medium text-sm">
-                        RUTA CUMPLIMIENTO REP
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        Chequeos Validados En Auditorías
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>

@@ -11,7 +11,7 @@ export const vu_retc: QuestionsMap = {
   Q_VU_REG: {
     id: "Q_VU_REG",
     sectionKey: "vu_retc",
-    title: "¿Estás registrado en Ventanilla Única (RETC)?",
+    title: "¿Estás registrado en Ventanilla Única?",
     type: "single",
     options: [
       { 
@@ -32,7 +32,7 @@ export const vu_retc: QuestionsMap = {
   Q_VU_APERTURA: {
     id: "Q_VU_APERTURA",
     sectionKey: "vu_retc",
-    title: "¿Has aperturado sectoriales?",
+    title: "¿Has aperturado sectoriales RETC?",
     type: "single",
     options: [
       { 
