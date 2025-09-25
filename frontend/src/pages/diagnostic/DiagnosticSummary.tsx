@@ -9,24 +9,28 @@ import { RepCard } from "./components/RepCards";
 
 const STATE_KEY = "dt_state_v3";
 
-// Safe parse para JSON guardado en answers
+// -------------------------------
+// Utilidades
+// -------------------------------
 function safeParse<T>(s?: string): T | undefined {
-  try { return s ? (JSON.parse(s) as T) : undefined; } catch { return undefined; }
+  try {
+    return s ? (JSON.parse(s) as T) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 type TrazComplexPayload = { score?: number; answered?: number };
 
-// IDs de la Línea Base de Trazabilidad
 const COMPLEXITY_QIDS = [
   "Q_TRAZ_FAMILIAS",
-  "Q_TRAZ_LINEAS", 
+  "Q_TRAZ_LINEAS",
   "Q_TRAZ_CATEGORIAS",
   "Q_TRAZ_SKUS",
   "Q_TRAZ_NIVELES",
   "Q_TRAZ_COMPONENTES",
 ] as const;
 
-// Mapear resultado de computeOutcome a tipos del componente VU-RETC
 function mapVuStage(stage: string | null): "inicial" | "transicion" | "avanzada" | null {
   if (!stage) return null;
   if (stage === "Empresa Inicial") return "inicial";
@@ -36,39 +40,51 @@ function mapVuStage(stage: string | null): "inicial" | "transicion" | "avanzada"
 }
 
 // Determinar estado REP basado en afectación y estandarización
-function determineRepStatus(afectaRep: string, trazMadurez: string | null, trazEstand: string | null): "no_afecto" | "transicion" | "inicial" {
-  console.log('determineRepStatus inputs:', { afectaRep, trazMadurez, trazEstand }); // DEBUG
-  
-  // Si estandarización es "óptimo" → NO afecto a REP (estado verde)
-  if (trazEstand === "optimo") return "no_afecto";
-  
+function determineRepStatus(
+  afectaRep: "Sí" | "No" | "Indeterminado" | string,
+  _trazMadurez: "Empresa Avanzada" | "Empresa en Transición" | "Empresa Inicial" | null,
+  trazEstand: "optimo" | "bueno" | "regular" | "limitado" | "critico" | null
+): "no_afecto" | "inicial" | "transicion" | "avanzada" {
+  // 1) Si NO está afecto → tarjeta 4
   if (afectaRep === "No") return "no_afecto";
-  
+
+  // 2) Si está afecto → mapeo por estandarización
   if (afectaRep === "Sí") {
-    // Si está afecto, revisar la madurez de trazabilidad (estandarización)
-    if (trazMadurez === "Empresa en Transición") return "transicion";
-    if (trazMadurez === "Empresa Inicial") return "inicial";
-    // Si no hay información de madurez o es avanzada, por defecto inicial
-    return "inicial";
+    switch (trazEstand) {
+      case "optimo":
+        return "avanzada"; // tarjeta 3 (verde)
+      case "bueno":
+      case "regular":
+        return "transicion"; // tarjeta 2 (amarillo)
+      case "limitado":
+      case "critico":
+        return "inicial"; // tarjeta 1 (rojo)
+      default:
+        return "inicial"; // prudente si falta dato
+    }
   }
-  
-  // Si es indeterminado, mostrar como inicial por precaución
+
+  // 3) Indeterminado → prudente
   return "inicial";
 }
 
-// Calcular progreso VU-RETC basado en el flujo escalonado
+// Calcular progreso VU-RETC (1/3, 2/3, 3/3)
 function calculateVuProgress(vuStage: string | null): number {
   if (!vuStage) return 0;
-  
   switch (vuStage) {
-    case "Empresa Inicial":     return 1; // No registrado → 1/3
-    case "Empresa en Transición": return 2; // Registrado pero sin aperturas → 2/3  
-    case "Empresa Avanzada":    return 3; // Registrado, con aperturas y declaraciones → 3/3
-    default: return 0;
+    case "Empresa Inicial":
+      return 1;
+    case "Empresa en Transición":
+      return 2;
+    case "Empresa Avanzada":
+      return 3;
+    default:
+      return 0;
   }
 }
 
 export default function DiagnosticSummary() {
+  // 1) Cargar estado y respuestas
   const state = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
@@ -76,28 +92,37 @@ export default function DiagnosticSummary() {
       return {};
     }
   }, []);
-
   const answers: Record<string, string> = state?.answers ?? {};
 
-  // Usar la lógica oficial de computeOutcome
+  // 2) Outcome oficial
   const outcome = useMemo(() => computeOutcome(answers), [answers]);
 
-  // Calcular progreso VU-RETC basado en el stage (1/3, 2/3, 3/3)
+  // 3) Progreso y estados derivados
   const vuProgress = useMemo(() => calculateVuProgress(outcome.vu_stage), [outcome.vu_stage]);
+  const vuStage = useMemo(() => mapVuStage(outcome.vu_stage), [outcome.vu_stage]);
 
-  // Calcular progreso REP - SIEMPRE 0 de 5 (se completa en otro módulo)
+  // Normalizamos Q_TRAZ_ESTAND a union válido o null
+  const trazEstandNorm = useMemo(() => {
+    const raw = (answers.Q_TRAZ_ESTAND ?? "").toLowerCase();
+    return (["optimo", "bueno", "regular", "limitado", "critico"].includes(raw)
+      ? (raw as "optimo" | "bueno" | "regular" | "limitado" | "critico")
+      : null);
+  }, [answers.Q_TRAZ_ESTAND]);
+
+  const repStatus = useMemo(
+    () => determineRepStatus(outcome.afecta_rep, outcome.traz_madurez, trazEstandNorm),
+    [outcome.afecta_rep, outcome.traz_madurez, trazEstandNorm]
+  );
+
+  // REP progress (por ahora 0 — se completa en otro módulo)
   const repProgress = 0;
 
-  // Mapear states para los componentes
-  const vuStage = useMemo(() => mapVuStage(outcome.vu_stage), [outcome.vu_stage]);
-  const repStatus = useMemo(() => determineRepStatus(outcome.afecta_rep, outcome.traz_madurez, answers.Q_TRAZ_ESTAND), [outcome.afecta_rep, outcome.traz_madurez, answers.Q_TRAZ_ESTAND]);
-
-  // Puntaje de complejidad guardado desde el Runner
+  // 4) Trazabilidad: payload de complejidad
   const trazComplex = useMemo(() => {
     return safeParse<TrazComplexPayload>(answers.Q_TRAZ_COMPLEX);
   }, [answers]);
 
-  // Lista de preguntas para "todo lo demás"
+  // 5) Lista de preguntas para “todo lo demás”
   const qList = useMemo(
     () =>
       Object.values(QUESTIONS)
@@ -111,8 +136,12 @@ export default function DiagnosticSummary() {
     if (!q) return val || "—";
     const opt = q.options?.find((o) => o.value === val);
     return opt?.label ?? (val ?? "—");
+    // Nota: si necesitas uppercasing de algún label, hazlo aquí según qid
   };
 
+  // -------------------------------
+  // Render
+  // -------------------------------
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
@@ -120,13 +149,11 @@ export default function DiagnosticSummary() {
         <div className="mx-auto max-w-4xl space-y-6">
           <h1 className="text-3xl font-bold">Resumen del Diagnóstico</h1>
 
-          {/* 1) Registro interno - Componente RepCard con nueva lógica */}
+          {/* 1) REP — tarjeta con nueva lógica */}
           <RepCard status={repStatus} completedSteps={repProgress} />
 
-          {/* 2) Ventanilla Única – RETC - Solo si aplica */}
-          {vuStage && (
-            <VuRetcCard stage={vuStage} completedSteps={0} />
-          )}
+          {/* 2) Ventanilla Única – RETC */}
+          {vuStage && <VuRetcCard stage={vuStage} completedSteps={vuProgress} />}
 
           {/* 3) Trazabilidad – Línea Base */}
           <Card>
@@ -134,7 +161,6 @@ export default function DiagnosticSummary() {
               <CardTitle>Trazabilidad – Línea Base</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Encabezado con puntaje */}
               <div className="rounded-md border p-3 text-sm flex items-center justify-between">
                 <div className="font-medium">Puntaje estructural del portafolio</div>
                 <div className="flex items-center gap-2">
@@ -142,14 +168,11 @@ export default function DiagnosticSummary() {
                     {outcome.traz_complex_score !== null ? outcome.traz_complex_score : "—"}
                   </Badge>
                   {typeof trazComplex?.answered === "number" && (
-                    <span className="text-xs text-muted-foreground">
-                      {trazComplex.answered}/6
-                    </span>
+                    <span className="text-xs text-muted-foreground">{trazComplex.answered}/6</span>
                   )}
                 </div>
               </div>
 
-              {/* Detalle de las 6 preguntas de complejidad */}
               {COMPLEXITY_QIDS.map((qid) => {
                 const q = QUESTIONS[qid as keyof typeof QUESTIONS];
                 if (!q) return null;

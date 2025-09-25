@@ -8,225 +8,141 @@ type VuStage = "inicial" | "transicion" | "avanzada";
 
 interface VuRetcCardProps {
   stage: VuStage;
-  completedSteps: number; // Este valor ya no se usa, siempre será 0
+  defaultExpanded?: boolean;
 }
 
-export function VuRetcCard({ stage, completedSteps }: VuRetcCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function VuRetcCard({ stage, defaultExpanded = false }: VuRetcCardProps) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
-  const getConfig = () => {
+  const cfg = (() => {
     switch (stage) {
       case "inicial":
         return {
-          headerColor: "bg-red-600",
-          iconColor: "text-red-600",
           badgeText: "EMPRESA INICIAL",
-          badgeClass: "bg-red-100 text-red-800 border-red-200",
+          badgeClass: "bg-red-100 text-red-800 border border-red-200",
+          iconColor: "text-red-600",
+          sectionIconBg: "bg-red-500",     // <- NUEVO: color del icono lateral
           progressColor: "bg-red-500",
-          message: "¡TE PODEMOS APOYAR! ACTUALMENTE TE ENCUENTRAS EN LA FASE INICIAL DEL PROCESO DE CUMPLIMIENTO RETC. ESTO SIGNIFICA QUE AÚN NO ESTÁS REGISTRADO EN VENTANILLA ÚNICA, POR LO TANTO NO HAS REALIZADO TUS DECLARACIONES. PARA ALCANZAR EL SIGUIENTE NIVEL, DEBES REGISTRARTE Y APERTURAR TUS SECTORIALES PERTINENTES."
+          progressPct: 33.33,
+          message:
+            "¡TE PODEMOS APOYAR! ACTUALMENTE TE ENCUENTRAS EN LA FASE INICIAL DEL PROCESO DE CUMPLIMIENTO RETC. ESTO SIGNIFICA QUE AÚN NO ESTÁS REGISTRADO EN VENTANILLA ÚNICA, POR LO TANTO NO HAS REALIZADO TUS DECLARACIONES. PARA ALCANZAR EL SIGUIENTE NIVEL, DEBES REGISTRARTE Y APERTURAR TUS SECTORIALES PERTINENTES.",
         };
       case "transicion":
         return {
-          headerColor: "bg-yellow-600",
-          iconColor: "text-yellow-600",
           badgeText: "EMPRESA EN TRANSICIÓN",
-          badgeClass: "bg-yellow-100 text-yellow-800 border-yellow-200",
+          badgeClass: "bg-yellow-100 text-yellow-800 border border-yellow-200",
+          iconColor: "text-yellow-600",
+          sectionIconBg: "bg-yellow-500",  // <- NUEVO
           progressColor: "bg-yellow-500",
-          message: "¡TE PODEMOS APOYAR! ACTUALMENTE TE ENCUENTRAS EN TRANSICIÓN EN EL PROCESO DE CUMPLIMIENTO RETC. ESTO SIGNIFICA QUE ESTÁS REGISTRADO, SÓLO NECESITAS DECLARAR PARA AVANZAR AL SIGUIENTE NIVEL."
+          progressPct: 66.67,
+          message:
+            "¡TE PODEMOS APOYAR! ACTUALMENTE TE ENCUENTRAS EN TRANSICIÓN EN EL PROCESO DE CUMPLIMIENTO RETC. ESTO SIGNIFICA QUE ESTÁS REGISTRADO, SÓLO NECESITAS DECLARAR PARA AVANZAR AL SIGUIENTE NIVEL.",
         };
       case "avanzada":
+      default:
         return {
-          headerColor: "bg-green-600",
-          iconColor: "text-green-600",
           badgeText: "EMPRESA EN VERDE",
-          badgeClass: "bg-green-100 text-green-800 border-green-200",
+          badgeClass: "bg-green-100 text-green-800 border border-green-200",
+          iconColor: "text-green-600",
+          sectionIconBg: "bg-green-500",   // <- NUEVO
           progressColor: "bg-green-500",
-          message: "¡FELICITACIONES! ACTUALMENTE TE ENCUENTRAS EN LA FASE AVANZADA DEL PROCESO DE CUMPLIMIENTO RETC. ESTO SIGNIFICA QUE ESTÁS AL DÍA CON TU REGISTRO Y DECLARACIONES."
+          progressPct: 100,
+          message:
+            "¡FELICITACIONES! ACTUALMENTE TE ENCUENTRAS EN LA FASE AVANZADA DEL PROCESO DE CUMPLIMIENTO RETC. ESTO SIGNIFICA QUE ESTÁS AL DÍA CON TU REGISTRO Y DECLARACIONES.",
         };
     }
-  };
-
-  const config = getConfig();
-
-  // Definir los 5 pasos de la ruta VU-RETC tal como aparece en la imagen
-  const getRouteSteps = () => {
-    return [
-      {
-        title: "RUTA VENTANILLA ÚNICA RETC",
-        description: "Registra tu establecimiento en RETC",
-        color: stage === "inicial" ? "bg-black" : "bg-gray-300", // Negro para empresa inicial en paso 1
-        isActive: stage !== "inicial" // Solo activo si no es inicial
-      },
-      {
-        title: "RUTA VENTANILLA ÚNICA RETC", 
-        description: "Caracteriza tus procesos productivos, identificando todas las fuentes de emisión, residuos y transferencias",
-        color: "bg-red-500", // Rojo
-        isActive: false
-      },
-      {
-        title: "RUTA VENTANILLA ÚNICA RETC",
-        description: "Apertura Todos Los Sistemas Sectoriales Pertinentes", 
-        color: "bg-orange-500", // Naranja
-        isActive: false
-      },
-      {
-        title: "RUTA VENTANILLA ÚNICA RETC",
-        description: "Completa La Declaración Anual De Emisiones, Residuos Y Transferencias En Plataforma RETC",
-        color: "bg-yellow-400", // Amarillo
-        isActive: false
-      },
-      {
-        title: "RUTA VENTANILLA ÚNICA RETC",
-        description: "Somete Tu Declaración A Verificación Externa, Obtén Aprobación Ministerial Y Asegura La Publicación Del Reporte.",
-        color: "bg-green-500", // Verde
-        isActive: false
-      }
-    ];
-  };
-
-  const routeSteps = getRouteSteps();
+  })();
 
   return (
     <Card>
       <CardContent className="p-0">
-        {/* Header dinámico clickeable */}
-        <div 
-          className={`${config.headerColor} text-white p-4 ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'} flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity`}
-          onClick={() => setIsExpanded(!isExpanded)}
+        {/* Header negro colapsable */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded((v) => !v)}
+          className={`w-full bg-black text-white p-4 ${
+            isExpanded ? "rounded-t-lg" : "rounded-lg"
+          } flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity`}
         >
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-              <CheckCircle className={`w-4 h-4 ${config.iconColor}`} />
+              <CheckCircle className={`w-4 h-4 ${cfg.iconColor}`} />
             </div>
-            <span className="font-semibold text-sm">ESTÁS SUJETO A DECLARAR EN VENTANILLA ÚNICA RETC</span>
+            <span className="font-semibold text-sm">
+              ESTÁS SUJETO A DECLARAR EN VENTANILLA ÚNICA RETC
+            </span>
           </div>
-          <div className="flex items-center">
-            {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-white" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-white" />
-            )}
-          </div>
-        </div>
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-white" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-white" />
+          )}
+        </button>
 
-        {/* Contenido expandible */}
         {isExpanded && (
           <div className="p-6 space-y-6">
-            {/* Sección de Resultados */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+            {/* Resultados */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                {/* Ícono lateral con color por estado */}
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cfg.sectionIconBg}`}>
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">RESULTADOS VENTANILLA ÚNICA RETC</h3>
-                </div>
+                <h3 className="font-semibold text-gray-900">
+                  RESULTADOS VENTANILLA ÚNICA RETC
+                </h3>
               </div>
 
               <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                {config.message}
+                {cfg.message}
               </p>
 
-              <p className="text-sm text-gray-500 leading-relaxed">
-                El <strong>RETC</strong> (Registro de Emisiones y Transferencia de Contaminantes) es un {stage === "transicion" ? "catálogo" : "sistema"} nacional
-                que recopila información sobre emisiones al aire, agua y suelo, y sobre transferencias de residuos de
-                establecimientos industriales. Las empresas {stage === "avanzada" ? "deben" : "reportan"} {stage === "avanzada" ? "reportar" : ""} anualmente sus datos ambientales para cumplir con la
-                normativa y promover la transparencia {stage === "transicion" || stage === "avanzada" ? "de información ambiental" : ""} hacia la ciudadanía.
+              <p className="text-xs text-gray-500 leading-relaxed">
+                El <strong>RETC</strong> (Registro de Emisiones y Transferencia de
+                Contaminantes) es un sistema nacional que recopila información sobre
+                emisiones al aire, agua y suelo, y transferencias de residuos de
+                establecimientos industriales. Las empresas reportan anualmente sus
+                datos ambientales para cumplir con la normativa y promover la
+                transparencia de información ambiental hacia la ciudadanía.
               </p>
-            </div>
+            </section>
 
-            {/* Estado de Cumplimiento */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+            {/* Estado de cumplimiento */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cfg.sectionIconBg}`}>
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">ESTADO DE CUMPLIMIENTO</h3>
-                  <p className="text-sm text-gray-600">
-                    Basado En Sus Respuestas, {stage === "transicion" ? "Presentamos Una Evaluación Del Nivel De Cumplimiento De Su Empresa Respecto A Los Distintos Hitos Establecidos, Identificando Avances Y Areas Por Mejorar." : "HEMOS EVALUADO EL ESTADO DE SU EMPRESA CON RESPECTO A LOS SIGUIENTES HITOS"}
+                  <h3 className="font-semibold text-gray-900">
+                    ESTADO DE CUMPLIMIENTO
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Basado en sus respuestas, éste es el nivel actual de cumplimiento
+                    respecto a Ventanilla Única RETC.
                   </p>
                 </div>
               </div>
 
-              {/* Tarjeta VU-RETC con semáforo */}
               <div className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h4 className="font-semibold">VU - RETC</h4>
-                    <p className="text-sm text-gray-600">RESUMEN DEL CUMPLIMIENTO:</p>
+                    <p className="text-sm text-gray-600">
+                      RESUMEN DEL CUMPLIMIENTO:
+                    </p>
                   </div>
-                  <Badge className={config.badgeClass}>{config.badgeText}</Badge>
+                  <Badge className={cfg.badgeClass}>{cfg.badgeText}</Badge>
                 </div>
 
-                {/* Barra de progreso dinámica - basada en el stage, no en completedSteps */}
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                  <div 
-                    className={`${config.progressColor} h-3 rounded-full transition-all duration-300`}
-                    style={{ 
-                      width: `${
-                        stage === "inicial" ? 33.33 : 
-                        stage === "transicion" ? 66.67 : 
-                        stage === "avanzada" ? 100 : 0
-                      }%` 
-                    }}
-                  ></div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className={`${cfg.progressColor} h-3 rounded-full transition-all duration-300`}
+                    style={{ width: `${cfg.progressPct}%` }}
+                  />
                 </div>
               </div>
-            </div>
-
-            {/* Recomendaciones */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">RECOMENDACIONES INMEDIATAS</h3>
-                  <p className="text-sm text-gray-600">
-                    ¿Qué Hacer? - Ventanilla Única RETC - Acciones Prioritarias Para Mejorar Su Cumplimiento
-                  </p>
-                </div>
-              </div>
-
-              {/* Ruta VU-RETC con 5 pasos exactos de la imagen */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold">TU RUTA VU - RETC</h4>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600">¿QUÉ HACER?</span>
-                    <Badge variant="secondary">0 DE 5 HITOS COMPLETADOS</Badge>
-                  </div>
-                </div>
-
-                {/* Representación visual de los 5 pasos como en la imagen */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    {routeSteps.map((step, index) => (
-                      <div key={index} className="flex flex-col items-center">
-                        <div className={`w-8 h-4 ${step.color} rounded-sm`}></div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="w-full bg-gray-300 h-2 rounded-full relative">
-                    <div className="w-2 h-2 bg-black rounded-full absolute left-0 top-0"></div>
-                  </div>
-                </div>
-
-                {/* Lista detallada de pasos */}
-                <div className="space-y-4">
-                  {routeSteps.map((step, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className={`w-4 h-4 ${step.color} rounded-sm mt-1 flex-shrink-0`}></div>
-                      <div>
-                        <h5 className="font-medium text-sm">{step.title}</h5>
-                        <p className="text-sm text-gray-600">{step.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            </section>
           </div>
         )}
       </CardContent>
