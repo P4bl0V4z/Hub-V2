@@ -1,0 +1,15 @@
+CUANDO HAY PROBLEMAS DE MIGRACION, EJ.Migraciones sin aplicar
+-------------------------------------------------------------
+//reflejar en el esquema de prisma el estado actual de la DB
+pnpm prisma db pull
+mkdir -p prisma/migrations/000_linea_base
+pnpm prisma migrate diff --from-empty --to-url "postgresql://hubuser:Hub2.2025**@localhost:5433/beloophub2" --script > prisma/migrations/000_linea_base/migration.sql
+// Verificar que no existan mas migraciones en la carpeta ./backend/prisma/migrations/
+pnpm prisma migrate resolve --applied 000_linea_base
+
+// realizamos los cambios en schema.prisma para que refleje los modelos necesarios para el sistema
+CUANDO SE REALIZA UN CAMBIO EN EL ESQUEMA DE PRISMA
+------------------------------------------------------------
+pnpm prisma migrate dev --create-only -n "cambios realizado"
+
+
