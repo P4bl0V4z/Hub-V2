@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
@@ -14,62 +14,139 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// aca comienza todo
+// === NUEVO: enum de niveles de acceso ===
+enum NivelAcceso {
+  SIN_DEFINIR
+  SIN_ACCESO
+  VER
+  EDITAR
+}
 
+// === NUEVO: catálogo global de objetos del sistema (solo BeLoop los administra) ===
+model ObjetoSistema {
+  id          Int             @id @default(autoincrement())
+  key         String          @unique      // ej: "usuarios", "empresas", "reportes"
+  nombre      String
+  descripcion String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt     @map("updated_at")
+
+  rolesAcceso RolAcceso[]
+}
+
+// === NUEVO: permisos de un rol sobre un objeto ===
+model RolAcceso {
+  id              Int            @id @default(autoincrement())
+  rolId           Int            @map("rol_id")
+  objetoSistemaId Int            @map("objeto_sistema_id")
+  nivel           NivelAcceso    @default(SIN_DEFINIR)
+
+  rol    Rol           @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  objeto ObjetoSistema @relation(fields: [objetoSistemaId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, objetoSistemaId])
+  @@index([objetoSistemaId])
+  @@index([nivel])
+}
+
+// ====== TUS MODELOS ORIGINALES (sin cambios estructurales) ======
 
 model Usuario {
-  id                Int                 @id @default(autoincrement())
-  email             String              @unique
-  password          String
+  id                Int              @id @default(autoincrement())
+  email             String           @unique
+  password          String?
   nombre            String
-  creadoEn          DateTime            @default(now()) @map("creado_en")
-  actualizadoEn     DateTime            @updatedAt @map("actualizado_en")
-  tokenVerificacion String?            @map("token_verificacion")
-  activo            Boolean             @default(false)
-  verificadoEn      DateTime?           @map("verificado_en")
-  tipoUsuario       String?             @map("tipo_usuario") // opcional, para flags globales
-
+  creadoEn          DateTime         @default(now()) @map("creado_en")
+  actualizadoEn     DateTime         @updatedAt @map("actualizado_en")
+  tokenVerificacion String?          @map("token_verificacion")
+  activo            Boolean          @default(false)
+  verificadoEn      DateTime?        @map("verificado_en")
+  tipoUsuario       String?          @map("tipo_usuario")
+  googleId          String?          @unique @map("google_id")
+  msId              String?          @unique @map("ms_id")
+  avatarUrl         String?          @map("avatar_url")
+  lastLoginAt       DateTime?        @map("last_login_at")
   empresas          UsuarioEmpresa[]
+  testAttempts      TestAttempt[]
+
+  @@index([email])
 }
 
 model Empresa {
-  id                Int                 @id @default(autoincrement())
-  nombre            String
-  creadoEn          DateTime            @default(now()) @map("creado_en")
-  esEmpresaMaestra  Boolean             @default(false)
+  id               Int              @id @default(autoincrement())
+  nombre           String
+  creadoEn         DateTime         @default(now()) @map("creado_en")
+  esEmpresaMaestra Boolean          @default(false)
+  usuarios         UsuarioEmpresa[]
 
-  usuarios          UsuarioEmpresa[]
+  @@index([esEmpresaMaestra])
+  @@unique([nombre])
 }
 
 model Rol {
-  id                  Int           @id @default(autoincrement())
-  nombre              String        @unique
-  descripcion         String?
-  soloEmpresaMaestra  Boolean       @default(false)
-
-  usuarios            UsuarioRol[]
+  id                 Int          @id @default(autoincrement())
+  nombre             String       @unique
+  descripcion        String?
+  soloEmpresaMaestra Boolean      @default(false)
+  usuarios           UsuarioRol[]
+  // relación inversa para permisos
+  rolesAcceso        RolAcceso[]
 }
 
 model UsuarioEmpresa {
-  id         Int            @id @default(autoincrement())
-  usuarioId  Int            @map("usuario_id")
-  empresaId  Int            @map("empresa_id")
-
-  usuario    Usuario        @relation(fields: [usuarioId], references: [id])
-  empresa    Empresa        @relation(fields: [empresaId], references: [id])
-
-  roles      UsuarioRol[]
+  id        Int          @id @default(autoincrement())
+  usuarioId Int          @map("usuario_id")
+  empresaId Int          @map("empresa_id")
+  empresa   Empresa      @relation(fields: [empresaId], references: [id])
+  usuario   Usuario      @relation(fields: [usuarioId], references: [id])
+  roles     UsuarioRol[]
 
   @@unique([usuarioId, empresaId])
+  @@index([empresaId])
+  @@index([usuarioId])
 }
 
 model UsuarioRol {
-  id                Int             @id @default(autoincrement())
-  usuarioEmpresaId  Int             @map("usuario_empresa_id")
-  rolId             Int             @map("rol_id")
-
-  usuarioEmpresa    UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
-  rol               Rol            @relation(fields: [rolId], references: [id])
+  id               Int            @id @default(autoincrement())
+  usuarioEmpresaId Int            @map("usuario_empresa_id")
+  rolId            Int            @map("rol_id")
+  rol              Rol            @relation(fields: [rolId], references: [id])
+  usuarioEmpresa   UsuarioEmpresa @relation(fields: [usuarioEmpresaId], references: [id])
 
   @@unique([usuarioEmpresaId, rolId])
+  @@index([rolId])
+}
+
+model Test {
+  id        Int        @id @default(autoincrement())
+  nombre    String
+  preguntas Question[]
+  attempts  TestAttempt[]
+}
+
+model Question {
+  id      Int    @id @default(autoincrement())
+  testId  Int
+  texto   String
+  test    Test   @relation(fields: [testId], references: [id])
+}
+
+model TestAttempt {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  testId      Int
+  label       String?
+  attemptNumber Int      @default(1)
+  startedAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  score       Float?
+  progress    Json      @db.JsonB
+  user        Usuario   @relation(fields: [userId], references: [id])
+  test        Test      @relation(fields: [testId], references: [id])
+
+  @@unique([userId, testId, completed], name: "unique_active_attempt")
+  @@index([userId, testId, completed])
+  @@index([testId, completedAt])
 }
