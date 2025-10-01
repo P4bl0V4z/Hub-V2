@@ -1,12 +1,12 @@
 // src/attempts/attempts.module.ts
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
 import { AttemptsService } from './attempts.service';
-import { AttemptsController, AttemptsByIdController } from './attempts.controller';
+import { AttemptsController } from './attempts.controller';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [AttemptsController, AttemptsByIdController],
+  controllers: [AttemptsController], // 👈 solo este
   providers: [AttemptsService],
   exports: [AttemptsService],
 })

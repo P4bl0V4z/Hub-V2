@@ -1,46 +1,45 @@
 import { Body, Controller, Param, Patch, Post, Req } from '@nestjs/common';
 import { AttemptsService } from './attempts.service';
+import { TestProgressSchema } from '../types/test-progress';
 
-/** Controller para rutas por test (iniciar/reanudar intento) */
-@Controller('tests/:testId/attempts')
+@Controller('api')
 export class AttemptsController {
-  constructor(private attempts: AttemptsService) {}
+  constructor(private readonly attempts: AttemptsService) {}
 
-  @Post('start')
-  async start(
-    @Param('testId') testIdParam: string,
-    @Body() body: { label?: string },
-    @Req() req: any,
-  ) {
-    const testId = Number(testIdParam);
-    const userId = Number(req.user?.id ?? 1); // temporal si aún no hay auth
-
+  // POST /api/tests/:testId/attempts
+  @Post('tests/:testId/attempts')
+  async start(@Param('testId') testId: string, @Req() req: any) {
+    const userId = req.user.id;
+    
+    // Permitir "auto" para crear test automáticamente
+    if (testId === 'auto') {
+      return this.attempts.startAttempt({
+        userId,
+        testName: 'Diagnóstico REP',
+        label: 'Diagnóstico',
+      });
+    }
+    
     return this.attempts.startAttempt({
       userId,
-      testId,
-      label: body.label,
+      testId: Number(testId),
+      label: 'Diagnóstico',
     });
   }
-}
 
-/** Controller para rutas por id de intento (autosave, etc.) */
-@Controller('attempts')
-export class AttemptsByIdController {
-  constructor(private attempts: AttemptsService) {}
-
-  @Patch(':attemptId/progress')
-  async updateProgress(
-    @Param('attemptId') attemptIdParam: string,
-    @Body() body: { progress: unknown },
+  // PATCH /api/attempts/:attemptId/progress
+  @Patch('attempts/:attemptId/progress')
+  async save(
+    @Param('attemptId') attemptId: string,
+    @Body() body: any,
     @Req() req: any,
   ) {
-    const attemptId = Number(attemptIdParam);
-    const userId = Number(req.user?.id ?? 1); // temporal
-
+    const userId = req.user.id;
+    const parsed = TestProgressSchema.parse(body.progress);
     return this.attempts.saveProgress({
-      attemptId,
+      attemptId: Number(attemptId),
       userId,
-      progress: body.progress,
+      progress: parsed,
     });
   }
 }

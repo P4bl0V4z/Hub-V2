@@ -24,13 +24,26 @@ type CompDraft = {
 };
 
 type Props = {
+  /** Valor inicial para reanudar (opcional) */
   initialValue?: MedicionPayload;
+
+  /** Callback tradicional con el payload tal cual (object) */
   onSubmit?: (payload: MedicionPayload) => void;
+
   /** Navegación a la siguiente sección del flujo */
   goTo?: (section: NextSectionKey) => void;
+
+  /**
+   * 👇 NUEVO (opcional):
+   * Permite guardar la respuesta directamente en tu answersMap (o donde quieras),
+   * usando el QID "Q_MEDICION_TODO" y el payload como string JSON.
+   * Ejemplo de uso en el contenedor:
+   *    onSaveAnswer={(qid, value) => setAnswersMap(prev => ({ ...prev, [qid]: value }))}
+   */
+  onSaveAnswer?: (qid: "Q_MEDICION_TODO", value: string) => void;
 };
 
-export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
+export default function MedicionCard({ initialValue, onSubmit, goTo, onSaveAnswer }: Props) {
   const [productos, setProductos] = useState<ProductItem[]>(
     () => initialValue?.productos ?? []
   );
@@ -41,7 +54,7 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
   });
   const [compDraft, setCompDraft] = useState<CompDraft>({});
 
-  // 👇 NEW: controlar qué productos están desplegados
+  // 👇 controlar qué productos están desplegados
   const [openProducts, setOpenProducts] = useState<Set<number>>(new Set());
   const toggleOpen = (idx: number) => {
     setOpenProducts((prev) => {
@@ -145,8 +158,13 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
       totalKgPorMaterial: totalsGlobal.totalKgPorMaterial,
     };
 
+    // 1) Guardado clásico por callback (mantiene compatibilidad)
     onSubmit?.(payload);
 
+    // 2) 👇 NUEVO: guardar en answersMap (o lo que definas) con QID y JSON string
+    onSaveAnswer?.("Q_MEDICION_TODO", JSON.stringify(payload));
+
+    // 3) Navegar según totalKg
     const next = decideNextSection(payload.totalKg); // "trazabilidad" | "vu_retc"
     goTo?.(next);
   };
@@ -183,7 +201,7 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
                   </span>
                 </div>
 
-                {/* 👇 NEW: botón para desplegar/ocultar componentes */}
+                {/* botón para desplegar/ocultar componentes */}
                 {p.componentes.length > 0 && editingIndex !== idx && (
                   <button
                     className="rounded-xl border px-3 py-2"
@@ -199,7 +217,7 @@ export default function MedicionCard({ initialValue, onSubmit, goTo }: Props) {
               </div>
             </div>
 
-            {/* 👇 UPDATED: componentes colapsables (por defecto ocultos) */}
+            {/* componentes colapsables */}
             {isOpen && p.componentes.length > 0 && editingIndex !== idx && (
               <div id={`prod-${idx}-componentes`} className="mt-4">
                 {p.componentes.map((c, i) => (

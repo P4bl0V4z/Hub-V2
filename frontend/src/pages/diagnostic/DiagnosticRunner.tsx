@@ -1,5 +1,4 @@
 // src/pages/diagnostic/DiagnosticRunner.tsx
-// (imports y navegación corregidos para el nuevo árbol de rutas)
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,13 +22,11 @@ import {
   type ComplexityLevel,
 } from "./flow";
 
-// Importa la tarjeta única de Medición
 import MedicionCard from "./flow/sections/MedicionCard";
+import { toProgressFromMap, autosaveProgress } from "@/ORDER";
 
 const STATE_KEY = "dt_state_v3";
 const SUMMARY_PATH = "/diagnostic/summary";
-
-// ⬇ NUEVO: clave donde guardaremos el payload del puntaje de complejidad en answers
 const KEY_TRAZ_COMPLEX = "Q_TRAZ_COMPLEX";
 
 const COMPLEXITY_QIDS: QuestionId[] = [
@@ -41,7 +38,6 @@ const COMPLEXITY_QIDS: QuestionId[] = [
   "Q_TRAZ_COMPONENTES",
 ];
 
-// Mapea cada QuestionId de complejidad a su clave de ponderación
 const COMPLEXITY_ID_TO_KEY: Partial<Record<QuestionId, keyof typeof COMPLEXITY_WEIGHTS>> = {
   Q_TRAZ_FAMILIAS: "familias",
   Q_TRAZ_LINEAS: "lineas",
@@ -106,7 +102,6 @@ const contiguousAnsweredCount = (answers: Record<string, string>) => {
   return count;
 };
 
-// Helper para parsear JSON guardado en answers
 const safeParse = <T,>(s?: string): T | undefined => {
   try {
     return s ? (JSON.parse(s) as T) : undefined;
@@ -119,10 +114,68 @@ export default function DiagnosticRunner() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>(() => loadState());
   const [showInfoCard, setShowInfoCard] = useState(false);
+  const [attemptId, setAttemptId] = useState<number | null>(null);
+
+  // Inicializar intento al montar el componente
+  useEffect(() => {
+    const initAttempt = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/tests/auto/attempts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('✓ Intento iniciado:', data);
+        setAttemptId(data.id);
+        
+        // Rehidratar progreso previo si existe
+        if (data.progress?.answers?.length > 0) {
+          const answersMap: Record<string, string> = {};
+          data.progress.answers.forEach((a: any) => {
+            answersMap[a.qid] = a.value;
+          });
+          
+          setState(prev => ({
+            ...prev,
+            answers: answersMap,
+            currentId: data.progress.currentQid || FIRST_QUESTION,
+          }));
+          
+          console.log('✓ Progreso rehidratado:', answersMap);
+        }
+      } catch (error) {
+        console.error('✗ Error al iniciar intento:', error);
+      }
+    };
+    
+    initAttempt();
+  }, []);
   
+  // Guardar en localStorage
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Autosave al backend
+  useEffect(() => {
+    if (!attemptId) return;
+    
+    const orderedQids = Object.values(QUESTIONS)
+      .filter(q => q.id !== 'END')
+      .map(q => q.id as QuestionId);
+    
+    const progress = toProgressFromMap(state.answers, orderedQids, state.currentId);
+    
+    autosaveProgress(attemptId, progress)
+      .then(() => console.log('✓ Autosave exitoso'))
+      .catch(err => console.error('✗ Error autosave:', err));
+      
+  }, [attemptId, state.answers, state.currentId]);
 
   useEffect(() => {
     setShowInfoCard(false);
@@ -145,7 +198,6 @@ export default function DiagnosticRunner() {
       if (a.Q_VU_APERTURA === "si" && a.Q_VU_DECL) completed += 1;
     }
     
-    // helper: encargado respondido en Trazabilidad o en VU
     const hasEncargado = (a: Record<string, string>) =>
       Boolean(a.Q_ENCARGADO || a.Q_TRAZ_ENCARGADO);
 
@@ -161,7 +213,7 @@ export default function DiagnosticRunner() {
   const isMedicionScreen = current.sectionKey === "medicion" && current.id === "Q_MEDICION_TODO";
 
   const validationMsg = useMemo(() => {
-    if (isMedicionScreen) return null; // La tarjeta maneja su propia validación
+    if (isMedicionScreen) return null;
     if (isComplexityScreen) {
       const missing = COMPLEXITY_QIDS.filter((id) => !state.answers[id]);
       return missing.length ? "Responde las 6 preguntas de complejidad." : null;
@@ -169,7 +221,6 @@ export default function DiagnosticRunner() {
     return current?.validate?.(state.answers) ?? null;
   }, [current, state.answers, isComplexityScreen, isMedicionScreen]);
 
-  // Puntaje acumulado de complejidad (factor × ponderación) mientras responden
   const complexityAccum = useMemo(() => {
     let total = 0;
     let answered = 0;
@@ -184,7 +235,7 @@ export default function DiagnosticRunner() {
       answered += 1;
     });
 
-    total = Math.round(total * 100) / 100; // redondeo UI
+    total = Math.round(total * 100) / 100;
     return { total, answered };
   }, [state.answers]);
 
@@ -201,7 +252,6 @@ export default function DiagnosticRunner() {
       return;
     }
 
-    //  CAMBIO: espejo Q_TRAZ_ENCARGADO → Q_ENCARGADO
     setState((s) => {
       const nextAnswers: Record<string, string> = { ...s.answers, [qid]: value };
       if (qid === "Q_TRAZ_ENCARGADO" && !nextAnswers.Q_ENCARGADO) {
@@ -212,7 +262,6 @@ export default function DiagnosticRunner() {
   };
 
   const computeNextId = (qid: QuestionId, value: string): QuestionId => {
-    // Al salir de la pantalla de complejidad (Q_TRAZ_FAMILIAS) saltamos a SG
     if (qid === "Q_TRAZ_FAMILIAS") return "Q_SG_ADHERIDO";
     const q = QUESTIONS[qid];
     const opt = q.options?.find((o) => o.value === value);
@@ -221,14 +270,12 @@ export default function DiagnosticRunner() {
     return (opt.next ?? "END") as QuestionId;
   };
 
-  // ⬇Ajuste para considerar completa la sección si se salta Q_SG_DECLARADO
   const markSectionIfCompleted = (qid: QuestionId, answers: Record<string, string>) => {
     const section = QUESTIONS[qid].sectionKey;
     let ids = Object.values(QUESTIONS)
       .filter((q) => q.sectionKey === section && q.id !== "END")
       .map((q) => q.id as QuestionId);
 
-    // Si en Sistema de Gestión respondió "no" en Q_SG_ADHERIDO, no exigimos Q_SG_DECLARADO
     if (section === "sistema_gestion" && answers.Q_SG_ADHERIDO === "no") {
       ids = ids.filter((id) => id !== "Q_SG_DECLARADO");
     }
@@ -243,14 +290,13 @@ export default function DiagnosticRunner() {
   };
 
   const onNext = () => {
-    if (isMedicionScreen) return; // La tarjeta propia hace submit y navegación
+    if (isMedicionScreen) return;
     if (current.id === "END") return;
     if (validationMsg) return;
 
     const qid = current.id;
     const value = state.answers[qid];
 
-    // ⬇NUEVO: al salir de la pantalla de complejidad, persistimos puntaje y avanzamos
     if (qid === "Q_TRAZ_FAMILIAS") {
       setState((s) => {
         const answersWithScore = {
@@ -261,7 +307,7 @@ export default function DiagnosticRunner() {
           }),
         };
 
-        const nextId = computeNextId(qid, value); // "Q_SG_ADHERIDO"
+        const nextId = computeNextId(qid, value);
         const sectionDone = markSectionIfCompleted(qid, answersWithScore);
 
         return {
@@ -278,7 +324,6 @@ export default function DiagnosticRunner() {
     const nextId = computeNextId(qid, value);
 
     if (nextId === "END") {
-      // SIMPLIFICADO: computeOutcome ya maneja el override de medición automáticamente
       const finalOutcome = {
         ...computeOutcome({ ...state.answers }),
         decided_at: new Date().toISOString(),
@@ -426,21 +471,16 @@ export default function DiagnosticRunner() {
                     const qid: QuestionId = "Q_MEDICION_TODO";
                     const nextAnswers = { ...state.answers, [qid]: JSON.stringify(payload) };
 
-                    // SIMPLIFICADO: computeOutcome ya maneja la afectación REP automáticamente
                     const outcome = {
                       ...computeOutcome({ ...nextAnswers }),
                       decided_at: new Date().toISOString(),
                       tag: "medicion" as const,
                     };
 
-                    //  Umbral mayor o igual a 300 kg para ruteo
                     const toTraz = (payload?.totalKg ?? 0) >= 300;
-
-                    // Limpiar respuestas de la sección objetivo para empezar desde el inicio
                     const cleaned = { ...nextAnswers };
                     
                     if (toTraz) {
-                      // Limpiar trazabilidad para empezar desde el inicio
                       const TRAZ_QIDS: QuestionId[] = [
                         "Q_TRAZ_ESTAND",
                         "Q_TRAZ_ENCARGADO",
@@ -463,7 +503,6 @@ export default function DiagnosticRunner() {
                         sectionDone: { ...s.sectionDone, trazabilidad: false },
                       }));
                     } else {
-                      // Limpiar VU-RETC para entrar desde el inicio
                       const VU_IDS: QuestionId[] = ["Q_VU_REG", "Q_VU_APERTURA", "Q_VU_DECL"];
                       VU_IDS.forEach((id) => delete (cleaned as any)[id]);
 
@@ -500,7 +539,6 @@ export default function DiagnosticRunner() {
           </Card>
         </div>
 
-        {/* Tarjeta de información al lado - solo si está abierta */}
         {questionInfo && showInfoCard && (
           <Card className={`h-fit ${questionInfo && !isComplexityScreen ? 'mt-16' : ''}`}>
             <CardContent className="p-4 relative">
