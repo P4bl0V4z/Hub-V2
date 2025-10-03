@@ -10,11 +10,12 @@ export class AttemptsService {
   /**
    * Crea un intento nuevo o reanuda el activo (completed = false)
    * Ahora soporta crear test automáticamente si se pasa testName
+   * Si todos los intentos están completados, crea uno nuevo con attemptNumber incrementado
    */
-  async startAttempt(params: { 
-    userId: number; 
-    testId?: number; 
-    testName?: string; 
+  async startAttempt(params: {
+    userId: number;
+    testId?: number;
+    testName?: string;
     label?: string;
   }) {
     const { userId, testName, label } = params;
@@ -40,7 +41,7 @@ export class AttemptsService {
       throw new BadRequestException('Debe proporcionar testId o testName');
     }
 
-    // Reanudar si hay intento activo
+    // Reanudar si hay intento activo (no completado)
     const existing = await this.prisma.testAttempt.findFirst({
       where: { userId, testId, completed: false },
     });
@@ -48,6 +49,15 @@ export class AttemptsService {
       console.log('✓ Reanudando intento existente:', existing.id);
       return existing;
     }
+
+    // Calcular el siguiente attemptNumber
+    const lastAttempt = await this.prisma.testAttempt.findFirst({
+      where: { userId, testId },
+      orderBy: { attemptNumber: 'desc' },
+      select: { attemptNumber: true },
+    });
+
+    const nextAttemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
 
     // Crear nuevo intento con progress inicial
     const initialProgress: TestProgress = {
@@ -61,11 +71,12 @@ export class AttemptsService {
         userId,
         testId,
         label: label ?? null,
+        attemptNumber: nextAttemptNumber,
         progress: initialProgress as Prisma.InputJsonValue,
       },
     });
 
-    console.log('✓ Nuevo intento creado:', newAttempt.id);
+    console.log(`✓ Nuevo intento creado: #${newAttempt.id} (Intento #${nextAttemptNumber})`);
     return newAttempt;
   }
 
@@ -79,19 +90,28 @@ export class AttemptsService {
       where: { id: attemptId },
       select: { id: true, userId: true, completed: true },
     });
-    
+
     if (!attempt) throw new NotFoundException('Intento no encontrado');
     if (attempt.userId !== userId) throw new ForbiddenException('No puedes modificar este intento');
     if (attempt.completed) throw new ForbiddenException('El intento ya está completado');
 
     const parsed: TestProgress = TestProgressSchema.parse(progress);
 
-    return this.prisma.testAttempt.update({
+    console.log('💾 Guardando progreso:', {
+      attemptId,
+      answeredCount: parsed.answeredCount,
+      totalAnswers: parsed.answers.length,
+    });
+
+    const updated = await this.prisma.testAttempt.update({
       where: { id: attemptId },
       data: {
         progress: parsed as Prisma.InputJsonValue,
       },
     });
+
+    console.log('✓ Progreso guardado exitosamente');
+    return updated;
   }
 
   /**
@@ -130,7 +150,7 @@ export class AttemptsService {
       where: { id: attemptId },
       select: { id: true, userId: true, completed: true },
     });
-    
+
     if (!attempt) throw new NotFoundException('Intento no encontrado');
     if (attempt.userId !== userId) throw new ForbiddenException('No puedes completar este intento');
     if (attempt.completed) {
@@ -144,6 +164,41 @@ export class AttemptsService {
         completedAt: new Date(),
         ...(typeof score === 'number' ? { score } : {}),
       },
+    });
+  }
+
+  /**
+   * Obtener todos los intentos de un usuario (para listar en UI o Postman)
+   * Ordenados por más reciente primero
+   */
+  async getUserAttempts(userId: number) {
+    const attempts = await this.prisma.testAttempt.findMany({
+      where: { userId },
+      include: {
+        test: {
+          select: {
+            id: true,
+            nombre: true,
+          },
+        },
+      },
+      orderBy: [
+        { testId: 'asc' },
+        { attemptNumber: 'desc' },
+      ],
+    });
+
+    console.log(`✓ Encontrados ${attempts.length} intentos para el usuario ${userId}`);
+    return attempts;
+  }
+
+  /**
+   * Obtener historial de intentos de un test específico para un usuario
+   */
+  async getTestHistory(userId: number, testId: number) {
+    return this.prisma.testAttempt.findMany({
+      where: { userId, testId },
+      orderBy: { attemptNumber: 'desc' },
     });
   }
 }

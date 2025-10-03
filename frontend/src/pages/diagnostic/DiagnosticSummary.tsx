@@ -1,11 +1,24 @@
 // src/pages/diagnostic/DiagnosticSummary.tsx
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import { QUESTIONS, SECTIONS, computeOutcome } from "./flow";
 import { VuRetcCard } from "./components/VuRetcCards";
 import { RepCard } from "./components/RepCards";
+import { RotateCcw } from "lucide-react";
 
 const STATE_KEY = "dt_state_v3";
 
@@ -84,6 +97,9 @@ function calculateVuProgress(vuStage: string | null): number {
 }
 
 export default function DiagnosticSummary() {
+  const navigate = useNavigate();
+  const [showNewTestDialog, setShowNewTestDialog] = useState(false);
+
   // 1) Cargar estado y respuestas
   const state = useMemo(() => {
     try {
@@ -93,6 +109,14 @@ export default function DiagnosticSummary() {
     }
   }, []);
   const answers: Record<string, string> = state?.answers ?? {};
+
+  // Función para iniciar un nuevo test
+  const handleNewTest = () => {
+    // Limpiar el localStorage
+    localStorage.removeItem(STATE_KEY);
+    // Redirigir al inicio del test
+    navigate('/diagnostic');
+  };
 
   // 2) Outcome oficial
   const outcome = useMemo(() => computeOutcome(answers), [answers]);
@@ -147,7 +171,17 @@ export default function DiagnosticSummary() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto max-w-4xl space-y-6">
-          <h1 className="text-3xl font-bold">Resumen del Diagnóstico</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Resumen del Diagnóstico</h1>
+            <Button
+              variant="outline"
+              onClick={() => setShowNewTestDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Nuevo Test
+            </Button>
+          </div>
 
           {/* 1) REP — tarjeta con nueva lógica */}
           <RepCard status={repStatus} completedSteps={repProgress} />
@@ -220,6 +254,25 @@ export default function DiagnosticSummary() {
           </Card>
         </div>
       </main>
+
+      {/* Diálogo de confirmación para nuevo test */}
+      <AlertDialog open={showNewTestDialog} onOpenChange={setShowNewTestDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Iniciar un nuevo test?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción creará un nuevo intento del test. Tus respuestas actuales quedarán guardadas en el historial,
+              pero comenzarás el test desde cero con un nuevo intento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleNewTest}>
+              Sí, iniciar nuevo test
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

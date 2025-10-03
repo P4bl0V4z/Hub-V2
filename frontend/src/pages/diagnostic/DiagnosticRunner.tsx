@@ -23,7 +23,7 @@ import {
 } from "./flow";
 
 import MedicionCard from "./flow/sections/MedicionCard";
-import { toProgressFromMap, autosaveProgress } from "@/ORDER";
+import { toProgressFromMap, autosaveProgress } from "./ORDER";
 
 const STATE_KEY = "dt_state_v3";
 const SUMMARY_PATH = "/diagnostic/summary";
@@ -120,39 +120,59 @@ export default function DiagnosticRunner() {
   useEffect(() => {
     const initAttempt = async () => {
       try {
+        const token = localStorage.getItem('beloop_token');
+        if (!token) {
+          console.error('✗ No hay token de autenticación');
+          return;
+        }
+
         const response = await fetch('http://localhost:3001/api/tests/auto/attempts', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        console.log('✓ Intento iniciado:', data);
+        console.log('✓ Intento iniciado/reanudado:', data);
         setAttemptId(data.id);
-        
+
         // Rehidratar progreso previo si existe
         if (data.progress?.answers?.length > 0) {
           const answersMap: Record<string, string> = {};
           data.progress.answers.forEach((a: any) => {
             answersMap[a.qid] = a.value;
           });
-          
+
+          // Reconstruir historial desde las respuestas guardadas
+          const orderedQids = Object.values(QUESTIONS)
+            .filter(q => q.id !== 'END')
+            .map(q => q.id as QuestionId);
+
+          const history = orderedQids.filter(qid => answersMap[qid]);
+
           setState(prev => ({
             ...prev,
             answers: answersMap,
             currentId: data.progress.currentQid || FIRST_QUESTION,
+            history: history,
           }));
-          
-          console.log('✓ Progreso rehidratado:', answersMap);
+
+          console.log('✓ Progreso rehidratado:', {
+            respuestas: Object.keys(answersMap).length,
+            preguntaActual: data.progress.currentQid,
+          });
         }
       } catch (error) {
         console.error('✗ Error al iniciar intento:', error);
       }
     };
-    
+
     initAttempt();
   }, []);
   
@@ -180,6 +200,13 @@ export default function DiagnosticRunner() {
   useEffect(() => {
     setShowInfoCard(false);
   }, [state.currentId]);
+
+  // Redirigir automáticamente si llegamos a END (ya está finished)
+  useEffect(() => {
+    if (state.currentId === "END" && state.finished) {
+      navigate(SUMMARY_PATH);
+    }
+  }, [state.currentId, state.finished, navigate]);
 
   const current = useMemo(() => QUESTIONS[state.currentId], [state.currentId]);
   const questionInfo = useMemo(() => getQuestionInfo(state.currentId), [state.currentId]);
@@ -289,6 +316,21 @@ export default function DiagnosticRunner() {
     setState(loadState());
   };
 
+  const onBack = () => {
+    if (state.history.length === 0) return;
+
+    const previousId = state.history[state.history.length - 1];
+    const newHistory = state.history.slice(0, -1);
+
+    setState((s) => ({
+      ...s,
+      currentId: previousId,
+      history: newHistory,
+    }));
+  };
+
+  const canGoBack = state.history.length > 0 && !isMedicionScreen;
+
   const onNext = () => {
     if (isMedicionScreen) return;
     if (current.id === "END") return;
@@ -341,7 +383,39 @@ export default function DiagnosticRunner() {
         sectionDone,
       }));
 
-      setTimeout(() => navigate(SUMMARY_PATH), 0);
+      // Completar intento en el backend (la navegación la maneja el useEffect)
+      const completeBackendAttempt = async () => {
+        if (!attemptId) {
+          console.warn('⚠ No hay attemptId, no se puede completar en backend');
+          return;
+        }
+
+        try {
+          const token = localStorage.getItem('beloop_token');
+          if (!token) {
+            console.error('✗ No hay token de autenticación');
+            return;
+          }
+
+          const response = await fetch(`http://localhost:3001/api/attempts/${attemptId}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          console.log('✓ Intento completado en backend');
+        } catch (error) {
+          console.error('✗ Error al completar intento:', error);
+        }
+      };
+
+      completeBackendAttempt();
       return;
     }
 
@@ -530,7 +604,14 @@ export default function DiagnosticRunner() {
             </CardContent>
 
             {!isMedicionScreen && (
-              <CardFooter className="flex justify-end">
+              <CardFooter className="flex justify-between">
+                <Button
+                  onClick={onBack}
+                  disabled={!canGoBack}
+                  variant="outline"
+                >
+                  Volver atrás
+                </Button>
                 <Button onClick={onNext} disabled={!!validationMsg}>
                   Siguiente
                 </Button>

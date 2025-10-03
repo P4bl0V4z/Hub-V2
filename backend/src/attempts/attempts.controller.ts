@@ -1,8 +1,8 @@
-import { Body, Controller, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { AttemptsService } from './attempts.service';
 import { TestProgressSchema } from '../types/test-progress';
 
-@Controller('api')
+@Controller()
 export class AttemptsController {
   constructor(private readonly attempts: AttemptsService) {}
 
@@ -10,7 +10,7 @@ export class AttemptsController {
   @Post('tests/:testId/attempts')
   async start(@Param('testId') testId: string, @Req() req: any) {
     const userId = req.user.id;
-    
+
     // Permitir "auto" para crear test automáticamente
     if (testId === 'auto') {
       return this.attempts.startAttempt({
@@ -19,7 +19,7 @@ export class AttemptsController {
         label: 'Diagnóstico',
       });
     }
-    
+
     return this.attempts.startAttempt({
       userId,
       testId: Number(testId),
@@ -40,6 +40,42 @@ export class AttemptsController {
       attemptId: Number(attemptId),
       userId,
       progress: parsed,
+    });
+  }
+
+  // GET /api/attempts/:attemptId - Obtener un intento específico
+  @Get('attempts/:attemptId')
+  async getOne(@Param('attemptId') attemptId: string, @Req() req: any) {
+    const userId = req.user.id;
+    return this.attempts.getAttempt(Number(attemptId), userId);
+  }
+
+  // GET /api/attempts - Listar todos los intentos del usuario
+  @Get('attempts')
+  async getAll(@Req() req: any) {
+    const userId = req.user.id;
+    return this.attempts.getUserAttempts(userId);
+  }
+
+  // GET /api/tests/:testId/attempts/history - Obtener historial de intentos de un test
+  @Get('tests/:testId/attempts/history')
+  async getHistory(@Param('testId') testId: string, @Req() req: any) {
+    const userId = req.user.id;
+    return this.attempts.getTestHistory(userId, Number(testId));
+  }
+
+  // POST /api/attempts/:attemptId/complete - Completar intento
+  @Post('attempts/:attemptId/complete')
+  async complete(
+    @Param('attemptId') attemptId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const userId = req.user.id;
+    return this.attempts.completeAttempt({
+      attemptId: Number(attemptId),
+      userId,
+      score: body.score,
     });
   }
 }

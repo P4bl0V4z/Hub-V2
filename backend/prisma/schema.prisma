@@ -146,7 +146,7 @@ model TestAttempt {
   user        Usuario   @relation(fields: [userId], references: [id])
   test        Test      @relation(fields: [testId], references: [id])
 
-  @@unique([userId, testId, completed], name: "unique_active_attempt")
   @@index([userId, testId, completed])
   @@index([testId, completedAt])
+  @@index([userId])
 }

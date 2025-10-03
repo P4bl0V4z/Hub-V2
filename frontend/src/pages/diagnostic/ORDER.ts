@@ -130,9 +130,17 @@ export function toProgressFromMap(
 }
 
 export async function autosaveProgress(attemptId: number, progress: any) {
+  const token = localStorage.getItem('beloop_token');
+  if (!token) {
+    throw new Error('No hay token de autenticación');
+  }
+
   const response = await fetch(`http://localhost:3001/api/attempts/${attemptId}/progress`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
     body: JSON.stringify({ progress }),
   });
 
