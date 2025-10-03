@@ -149,4 +149,5 @@ model TestAttempt {
   @@index([userId, testId, completed])
   @@index([testId, completedAt])
   @@index([userId])
+  @@unique([userId, testId, attemptNumber])
 }

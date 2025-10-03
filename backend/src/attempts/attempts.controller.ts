@@ -27,6 +27,27 @@ export class AttemptsController {
     });
   }
 
+  // POST /api/tests/:testId/attempts/new - Forzar creación de nuevo intento
+  @Post('tests/:testId/attempts/new')
+  async forceNew(@Param('testId') testId: string, @Req() req: any) {
+    const userId = req.user.id;
+
+    // Permitir "auto" para crear test automáticamente
+    if (testId === 'auto') {
+      return this.attempts.forceNewAttempt({
+        userId,
+        testName: 'Diagnóstico REP',
+        label: 'Diagnóstico',
+      });
+    }
+
+    return this.attempts.forceNewAttempt({
+      userId,
+      testId: Number(testId),
+      label: 'Diagnóstico',
+    });
+  }
+
   // PATCH /api/attempts/:attemptId/progress
   @Patch('attempts/:attemptId/progress')
   async save(

@@ -9,7 +9,9 @@
       "Bash(pnpm run:*)",
       "Bash(node:*)",
       "Bash(npx ts-node:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(grep:*)",
+      "Bash(npx prisma migrate dev:*)"
     ],
     "deny": [],
     "ask": []

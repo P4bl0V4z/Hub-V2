@@ -201,4 +201,83 @@ export class AttemptsService {
       orderBy: { attemptNumber: 'desc' },
     });
   }
+
+  /**
+   * Forzar la creación de un nuevo intento, completando el anterior si existe
+   * Útil para el botón "Nuevo Test" desde la pantalla de resultados
+   */
+  async forceNewAttempt(params: {
+    userId: number;
+    testId?: number;
+    testName?: string;
+    label?: string;
+  }) {
+    const { userId, testName, label } = params;
+    let testId = params.testId;
+
+    // Si no hay testId, buscar o crear test por nombre
+    if (!testId && testName) {
+      let test = await this.prisma.test.findFirst({
+        where: { nombre: testName },
+      });
+
+      if (!test) {
+        test = await this.prisma.test.create({
+          data: { nombre: testName },
+        });
+        console.log('✓ Test creado:', test);
+      }
+
+      testId = test.id;
+    }
+
+    if (!testId) {
+      throw new BadRequestException('Debe proporcionar testId o testName');
+    }
+
+    // Completar cualquier intento activo (no completado)
+    const activeAttempt = await this.prisma.testAttempt.findFirst({
+      where: { userId, testId, completed: false },
+    });
+
+    if (activeAttempt) {
+      await this.prisma.testAttempt.update({
+        where: { id: activeAttempt.id },
+        data: {
+          completed: true,
+          completedAt: new Date(),
+        },
+      });
+      console.log(`✓ Intento anterior #${activeAttempt.id} completado automáticamente`);
+    }
+
+    // Calcular el siguiente attemptNumber
+    const lastAttempt = await this.prisma.testAttempt.findFirst({
+      where: { userId, testId },
+      orderBy: { attemptNumber: 'desc' },
+      select: { attemptNumber: true },
+    });
+
+    const nextAttemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
+
+    // Crear nuevo intento con progress inicial
+    const initialProgress: TestProgress = {
+      version: 'v1',
+      answeredCount: 0,
+      answers: [],
+    };
+
+    const newAttempt = await this.prisma.testAttempt.create({
+      data: {
+        userId,
+        testId,
+        label: label ?? null,
+        attemptNumber: nextAttemptNumber,
+        progress: initialProgress as Prisma.InputJsonValue,
+      },
+    });
+
+    console.log(`✓ Nuevo intento forzado creado: #${newAttempt.id} (Intento #${nextAttemptNumber})`);
+    return newAttempt;
+  }
 }

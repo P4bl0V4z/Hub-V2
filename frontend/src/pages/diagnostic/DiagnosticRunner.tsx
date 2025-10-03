@@ -53,6 +53,7 @@ type State = {
   sectionDone: Record<SectionKey, boolean>;
   history: QuestionId[];
   finished: boolean;
+  attemptId?: number | null;
   outcomes: Array<{
     afecta_rep?: "Sí" | "No" | "Indeterminado";
     vu_stage?: string | null;
@@ -116,6 +117,14 @@ export default function DiagnosticRunner() {
   const [showInfoCard, setShowInfoCard] = useState(false);
   const [attemptId, setAttemptId] = useState<number | null>(null);
 
+  // Resetear estado si el localStorage está vacío (nuevo test)
+  useEffect(() => {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) {
+      setState(loadState());
+    }
+  }, []);
+
   // Inicializar intento al montar el componente
   useEffect(() => {
     const initAttempt = async () => {
@@ -142,8 +151,14 @@ export default function DiagnosticRunner() {
         console.log('✓ Intento iniciado/reanudado:', data);
         setAttemptId(data.id);
 
-        // Rehidratar progreso previo si existe
-        if (data.progress?.answers?.length > 0) {
+        // Guardar attemptId en el state para que esté disponible en DiagnosticSummary
+        setState(prev => ({ ...prev, attemptId: data.id }));
+
+        // Solo rehidratar si hay localStorage con estado
+        // Si el localStorage está vacío, significa que es un nuevo test
+        const hasLocalStorage = localStorage.getItem(STATE_KEY);
+
+        if (hasLocalStorage && data.progress?.answers?.length > 0) {
           const answersMap: Record<string, string> = {};
           data.progress.answers.forEach((a: any) => {
             answersMap[a.qid] = a.value;
@@ -163,10 +178,12 @@ export default function DiagnosticRunner() {
             history: history,
           }));
 
-          console.log('✓ Progreso rehidratado:', {
+          console.log('✓ Progreso rehidratado desde backend:', {
             respuestas: Object.keys(answersMap).length,
             preguntaActual: data.progress.currentQid,
           });
+        } else {
+          console.log('✓ Nuevo test iniciado (no hay progreso previo a rehidratar)');
         }
       } catch (error) {
         console.error('✗ Error al iniciar intento:', error);
