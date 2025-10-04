@@ -8,7 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// === NUEVO: enum de niveles de acceso ===
 enum NivelAcceso {
   SIN_DEFINIR
   SIN_ACCESO
@@ -16,7 +15,6 @@ enum NivelAcceso {
   EDITAR
 }
 
-// === NUEVO: catálogo global de objetos del sistema (solo BeLoop los administra) ===
 model ObjetoSistema {
   id          Int             @id @default(autoincrement())
   key         String          @unique      // ej: "usuarios", "empresas", "reportes"
@@ -28,7 +26,6 @@ model ObjetoSistema {
   rolesAcceso RolAcceso[]
 }
 
-// === NUEVO: permisos de un rol sobre un objeto ===
 model RolAcceso {
   id              Int            @id @default(autoincrement())
   rolId           Int            @map("rol_id")
@@ -42,8 +39,6 @@ model RolAcceso {
   @@index([objetoSistemaId])
   @@index([nivel])
 }
-
-// ====== TUS MODELOS ORIGINALES (sin cambios estructurales) ======
 
 model Usuario {
   id                Int              @id @default(autoincrement())
@@ -83,7 +78,6 @@ model Rol {
   descripcion        String?
   soloEmpresaMaestra Boolean      @default(false)
   usuarios           UsuarioRol[]
-  // relación inversa para permisos
   rolesAcceso        RolAcceso[]
 }
 
