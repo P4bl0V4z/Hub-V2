@@ -8,6 +8,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum NivelAcceso {
+  SIN_DEFINIR
+  SIN_ACCESO
+  VER
+  EDITAR
+}
+
+model ObjetoSistema {
+  id          Int             @id @default(autoincrement())
+  key         String          @unique      // ej: "usuarios", "empresas", "reportes"
+  nombre      String
+  descripcion String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt     @map("updated_at")
+
+  rolesAcceso RolAcceso[]
+}
+
+model RolAcceso {
+  id              Int            @id @default(autoincrement())
+  rolId           Int            @map("rol_id")
+  objetoSistemaId Int            @map("objeto_sistema_id")
+  nivel           NivelAcceso    @default(SIN_DEFINIR)
+
+  rol    Rol           @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  objeto ObjetoSistema @relation(fields: [objetoSistemaId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, objetoSistemaId])
+  @@index([objetoSistemaId])
+  @@index([nivel])
+}
+
 model Usuario {
   id                Int              @id @default(autoincrement())
   email             String           @unique
@@ -65,20 +97,39 @@ model UsuarioRol {
   @@unique([usuarioEmpresaId, rolId])
 }
 
+model Test {
+  id        Int        @id @default(autoincrement())
+  nombre    String
+  preguntas Question[]
+  attempts  TestAttempt[]
+}
+
+model Question {
+  id      Int    @id @default(autoincrement())
+  testId  Int
+  texto   String
+  test    Test   @relation(fields: [testId], references: [id])
+}
+
 model TestAttempt {
   id          Int       @id @default(autoincrement())
   userId      Int
   testId      Int
   label       String?
+  attemptNumber Int      @default(1)
   startedAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   completed   Boolean   @default(false)
   completedAt DateTime?
-  progress    Json
+  score       Float?
+  progress    Json      @db.JsonB
   user        Usuario   @relation(fields: [userId], references: [id])
+  test        Test      @relation(fields: [testId], references: [id])
 
   @@index([userId, testId, completed])
   @@index([testId, completedAt])
+  @@index([userId])
+  @@unique([userId, testId, attemptNumber])
 }
 
 // agregados 30 de Set

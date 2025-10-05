@@ -4,8 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { MailerModule } from './mailer/mailer.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
-import { AdminUsuariosModule } from './admin/usuarios/admin.usuarios.module';
-import { TestsModule } from './tests/tests.module';
+import { AttemptsModule } from './attempts/attempts.module';
 
 @Module({
   imports: [
@@ -14,8 +13,7 @@ import { TestsModule } from './tests/tests.module';
     AuthModule,
     UsersModule,
     MailerModule,
-    AdminUsuariosModule,
-    TestsModule,
+    AttemptsModule,
   ],
 })
 export class AppModule {}

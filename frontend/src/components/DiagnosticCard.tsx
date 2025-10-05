@@ -1,23 +1,52 @@
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import BeLoopIcon from '@/components/BeLoopIcons';
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+
+const STATE_KEY = "dt_state_v3";
 
 const DiagnosticCard = () => {
-  const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
-  
-  const handleStartDiagnostic = () => {
-    setDialogOpen(true);
+  const [state, setState] = useState<any>(null);
+
+  // Cargar estado del localStorage y actualizar periódicamente
+  useEffect(() => {
+    const loadState = () => {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (raw) {
+          setState(JSON.parse(raw));
+        } else {
+          setState(null);
+        }
+      } catch (error) {
+        console.error('Error loading state:', error);
+        setState(null);
+      }
+    };
+
+    loadState();
+    // Actualizar cada segundo para reflejar cambios en tiempo real
+    const interval = setInterval(loadState, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Determinar el estado del test
+  const testStatus = useMemo(() => {
+    if (!state) return 'not_started'; // No hay estado -> No iniciado
+    if (state.finished === true) return 'completed'; // finished = true -> Completado
+    return 'in_progress'; // Existe pero no completado -> En progreso
+  }, [state]);
+
+  const handleAction = () => {
+    if (testStatus === 'completed') {
+      navigate('/diagnostic/summary');
+    } else {
+      navigate('/diagnostic');
+    }
   };
 
   return (
@@ -32,52 +61,55 @@ const DiagnosticCard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Estado del test</p>
-                <p className="font-medium">Completado el 15/04/2025</p>
+
+                {testStatus === 'not_started' && (
+                  <p className="font-medium">No iniciado</p>
+                )}
+
+                {testStatus === 'in_progress' && (
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                    En progreso
+                  </Badge>
+                )}
+
+                {testStatus === 'completed' && (
+                  <Badge variant="default" className="bg-green-600">
+                    Completado
+                  </Badge>
+                )}
               </div>
-              <Button variant="outline" size="sm" className="gap-1" onClick={handleStartDiagnostic}>
-                <BeLoopIcon name="play" className="h-4 w-4" />
-                Iniciar
+
+              <Button
+                variant={testStatus === 'completed' ? 'default' : 'outline'}
+                size="sm"
+                className="gap-1"
+                onClick={handleAction}
+              >
+                {testStatus === 'not_started' && (
+                  <>
+                    <BeLoopIcon name="play" className="h-4 w-4" />
+                    Iniciar Test
+                  </>
+                )}
+
+                {testStatus === 'in_progress' && (
+                  <>
+                    <BeLoopIcon name="arrow-right" className="h-4 w-4" />
+                    Continuar Test
+                  </>
+                )}
+
+                {testStatus === 'completed' && (
+                  <>
+                    <BeLoopIcon name="eye" className="h-4 w-4" />
+                    Ver Resultados
+                  </>
+                )}
               </Button>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <div className="bg-muted/30 p-3 rounded-md text-center">
-                <div className="text-2xl font-bold">74%</div>
-                <div className="text-xs text-muted-foreground">Cumplimiento</div>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-md text-center">
-                <div className="text-2xl font-bold">8/12</div>
-                <div className="text-xs text-muted-foreground">Categorías</div>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-md text-center">
-                <div className="text-2xl font-bold">21/35</div>
-                <div className="text-xs text-muted-foreground">Requisitos</div>
-              </div>
             </div>
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Test de Diagnóstico</DialogTitle>
-            <DialogDescription>
-              Este test nos ayudará a entender mejor tu empresa y sus necesidades.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Button 
-              className="w-full" 
-              onClick={() => {
-                setDialogOpen(false);
-                navigate("/diagnostic-test");
-              }}
-            >
-              Comenzar Test
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
