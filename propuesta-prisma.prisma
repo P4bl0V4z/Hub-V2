@@ -1,0 +1,88 @@
+// Agregar al schema.prisma existente
+
+model DiagnosticTest {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  empresaId       Int?     // opcional si quieres asociar a empresa específica
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  isCompleted     Boolean  @default(false)
+  version         String   @default("v3") // para versionado del test
+  
+  // Relaciones
+  user            Usuario  @relation(fields: [userId], references: [id])
+  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+  responses       DiagnosticResponse[]
+  outcomes        DiagnosticOutcome[]
+  
+  @@index([userId, completedAt])
+  @@index([empresaId, completedAt])
+}
+
+model DiagnosticResponse {
+  id              Int      @id @default(autoincrement())
+  testId          Int
+  questionId      String   // Q_SIZE, Q_COMERCIALIZA, etc.
+  answer          String   // valor de la respuesta
+  answeredAt      DateTime @default(now())
+  sectionKey      String   // antecedentes, trazabilidad, etc.
+  
+  // Relación
+  test            DiagnosticTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  @@unique([testId, questionId]) // una respuesta por pregunta por test
+  @@index([testId, sectionKey])
+}
+
+model DiagnosticOutcome {
+  id                    Int      @id @default(autoincrement())
+  testId                Int
+  tag                   String   // "final", "medicion", "vu_retc", "trazabilidad", etc.
+  createdAt             DateTime @default(now())
+  
+  // Resultados principales
+  afectaRep             String?  // "Sí", "No", "Indeterminado"
+  encargadoFlag         String?  // "si", "no"
+  selectedPlan          String?  // "simple", "pro", "enterprise"
+  
+  // VU-RETC: Clasificación según flujo de la imagen 1
+  vuRegistered          String?  // "si", "no" (¿Estás registrado en Ventanilla única?)
+  vuSectoriales         String?  // "si", "no" (¿Has aperturado sectoriales?)
+  vuDeclaraciones       String?  // "si", "no" (¿Has realizado declaraciones?)
+  vuStage               String?  // "Empresa Inicial", "Empresa en Transición", "Empresa Avanzada"
+  
+  // Trazabilidad: Clasificación según flujo de la imagen 2
+  trazEstandarizacion   String?  // "optimo", "bueno", "regular", "limitado", "critico"
+  trazMadurez           String?  // "Empresa Avanzada", "Empresa en Transición", "Empresa Inicial"
+  trazComplexScore      Float?   // 1.00-4.00 (puntaje ponderado)
+  trazComplexLevel      String?  // "basica", "intermedia", "avanzada", "compleja"
+  
+  // Complejidad estructural detallada
+  trazFamilias          String?  // "basica", "intermedia", "avanzada", "compleja"
+  trazLineas            String?  // "basica", "intermedia", "avanzada", "compleja"
+  trazCategorias        String?  // "basica", "intermedia", "avanzada", "compleja"
+  trazSkus              String?  // "basica", "intermedia", "avanzada", "compleja"
+  trazNiveles           String?  // "basica", "intermedia", "avanzada", "compleja"
+  trazComponentes       String?  // "basica", "intermedia", "avanzada", "compleja"
+  
+  // Sistema de Gestión
+  sgAdherido            String?  // "si", "no" (¿Está adherido a un Sistema de Gestión?)
+  sgDeclarado           String?  // "si", "no" (¿Has realizado declaraciones?)
+  
+  // Medición (si aplica)
+  medicionTotalKg       Float?
+  medicionData          Json?    @db.JsonB // datos completos de medición con productos
+  
+  // Antecedentes
+  empresaSize           String?  // "micro", "pequena", "mediana", "grande"
+  comercializa          String?  // "si", "no"
+  kg300                 String?  // "si", "no", "ns" (No lo sé)
+  
+  // Relación
+  test                  DiagnosticTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  @@index([testId, tag])
+  @@index([vuStage])
+  @@index([trazMadurez])
+  @@index([afectaRep])
+}

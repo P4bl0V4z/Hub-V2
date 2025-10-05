@@ -1,4 +1,5 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Reflector } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthorizationService } from './authorization.service';
 import { AUTHZ_MIN, AUTHZ_OBJECT } from './authz.decorator';
 
@@ -13,7 +14,7 @@ export class AuthzGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest();
     const userId = req.user?.id as number | undefined;
-    const empresaId = req.empresaId as number | undefined; // asegúrate de setearla con tu middleware
+    const empresaId = req.empresaId as number | undefined;
 
     if (!userId || !empresaId) throw new ForbiddenException('Contexto incompleto');
 

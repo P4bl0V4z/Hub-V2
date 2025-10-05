@@ -78,6 +78,7 @@ model Rol {
   descripcion        String?
   soloEmpresaMaestra Boolean      @default(false)
   usuarios           UsuarioRol[]
+  // relación inversa para permisos
   rolesAcceso        RolAcceso[]
 }
 
@@ -105,18 +106,37 @@ model UsuarioRol {
   @@index([rolId])
 }
 
+model Test {
+  id        Int        @id @default(autoincrement())
+  nombre    String
+  preguntas Question[]
+  attempts  TestAttempt[]
+}
+
+model Question {
+  id      Int    @id @default(autoincrement())
+  testId  Int
+  texto   String
+  test    Test   @relation(fields: [testId], references: [id])
+}
+
 model TestAttempt {
   id          Int       @id @default(autoincrement())
   userId      Int
   testId      Int
   label       String?
+  attemptNumber Int      @default(1)
   startedAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   completed   Boolean   @default(false)
   completedAt DateTime?
+  score       Float?
   progress    Json      @db.JsonB
   user        Usuario   @relation(fields: [userId], references: [id])
+  test        Test      @relation(fields: [testId], references: [id])
 
   @@index([userId, testId, completed])
   @@index([testId, completedAt])
+  @@index([userId])
+  @@unique([userId, testId, attemptNumber])
 }

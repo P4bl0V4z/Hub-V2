@@ -9,7 +9,10 @@ import { Mail, Lock, ArrowRight, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import HelpTooltip from "@/components/HelpTooltip";
 import BeLoopIcon from "@/components/BeLoopIcons";
-import { login, bootstrapSession } from "@/lib/auth";
+
+import { useAuth } from "@/components/auth/AuthContext";
+import { api } from "@/lib/api";
+import { bootstrapSession } from "@/lib/auth";
 
 interface LoginFormProps {
   onAdminAccess: () => void;
@@ -21,8 +24,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,51 +40,64 @@ const LoginForm: React.FC<LoginFormProps> = ({ onAdminAccess }) => {
       });
       return;
     }
-    try {
-      // backend setea cookie httpOnly
-      const data = await login(email, password);
-      // sincroniza banderas en LS para UI legacy
-      await bootstrapSession();
 
-      if ((window as any).beLoopLogin) (window as any).beLoopLogin();
+    try {
+      setSubmitting(true);
+
+      const ok = await login(email, password);
+      await bootstrapSession(); // refrescar CSRF token
+      
+      if (!ok) throw new Error("Credenciales inválidas");
+
+      const { data: me } = await api.get("/auth/me", {
+        params: { expand: "empresas,roles" },
+      });
+
+      const isAdmin =
+        Array.isArray(me?.empresas) &&
+        me.empresas.some(
+          (ue: any) => Array.isArray(ue?.roles) && ue.roles.includes("admin")
+        );
+
       toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
 
-      navigate(data?.rol === "admin" ? "/admin" : "/");
+      navigate(isAdmin ? "/admin" : "/", { replace: true });
     } catch (err: any) {
       toast({
         title: "Error de autenticación",
-        description: err.message,
+        description: err?.message ?? "No se pudo iniciar sesión",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-const handleGoogleLogin = () => {
-  if (!API_URL) {
-    console.error("VITE_API_URL no está definido");
-    toast({
-      title: "Configuración faltante",
-      description: "VITE_API_URL no está configurado.",
-      variant: "destructive",
-    });
-    return;
-  }
+  const handleGoogleLogin = () => {
+    if (!API_URL) {
+      console.error("VITE_API_URL no está definido");
+      toast({
+        title: "Configuración faltante",
+        description: "VITE_API_URL no está configurado.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const url = new URL(window.location.href);
+    const url = new URL(window.location.href);
 
-  let from: string;
-  if (url.pathname.startsWith("/login")) {
-    const redirect = url.searchParams.get("redirect");
-    from = redirect && redirect.startsWith("/") ? redirect : "/";
-  } else {
-    from = url.pathname + url.search + url.hash;
-    if (!from || !from.startsWith("/")) from = "/";
-  }
+    let from: string;
+    if (url.pathname.startsWith("/login")) {
+      const redirect = url.searchParams.get("redirect");
+      from = redirect && redirect.startsWith("/") ? redirect : "/";
+    } else {
+      from = url.pathname + url.search + url.hash;
+      if (!from || !from.startsWith("/")) from = "/";
+    }
 
-  setLoadingGoogle(true);
-  window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from)}`;
-};
-
+    setLoadingGoogle(true);
+    window.location.href = `${API_URL}/auth/google?from=${encodeURIComponent(from)}`;
+  };
 
   return (
     <>
@@ -96,6 +115,7 @@ const handleGoogleLogin = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
             />
           </div>
           <div className="space-y-2">
@@ -110,10 +130,11 @@ const handleGoogleLogin = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
             />
           </div>
-          <Button type="submit" className="w-full">
-            Ingresar
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Ingresando..." : "Ingresar"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </form>
@@ -125,7 +146,6 @@ const handleGoogleLogin = () => {
         <div className="space-y-4">
           <p className="text-xs text-center text-muted-foreground">o ingresar con</p>
           <div className="grid grid-cols-2 gap-4">
-            {/* ✅ Google */}
             <Button
               type="button"
               variant="outline"
@@ -137,7 +157,6 @@ const handleGoogleLogin = () => {
               <BeLoopIcon name="gmail" size={16} className="mr-2" />
               Google
             </Button>
-
             {/* Microsoft (deshabilitado por ahora)
             <Button variant="outline" className="w-full" disabled>
               <BeLoopIcon name="microsoft" size={16} className="mr-2" />

@@ -37,7 +37,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var client_1 = require("@prisma/client");
-var bcrypt_1 = require("bcrypt");
+var bcrypt_1 = require("bcryptjs");
 var prisma = new client_1.PrismaClient();
 function main() {
     return __awaiter(this, void 0, void 0, function () {
@@ -94,7 +94,7 @@ function main() {
                         console.log('El usuario admin ya existe.');
                         return [2 /*return*/];
                     }
-                    return [4 /*yield*/, bcrypt_1.default.hash(password, 10)];
+                    return [4 /*yield*/, bcrypt_1.hash(password, 10)];
                 case 8:
                     hashedPassword = _a.sent();
                     return [4 /*yield*/, prisma.usuario.create({

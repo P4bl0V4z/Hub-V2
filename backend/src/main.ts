@@ -16,5 +16,6 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe());
   await app.listen(process.env.PORT || 3001, '0.0.0.0');
+  console.log(`API corriendo en http://localhost:${process.env.PORT || 3001}/api`);
 }
 bootstrap();

@@ -1,16 +1,18 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { fetchSession, logout as apiLogout } from '@/lib/auth';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { api } from '@/lib/api';              // Axios con baseURL y withCredentials: true
+import { fetchSession, logout as apiLogout } from '@/lib/auth'; // /auth/me y /auth/logout
 
 type AuthUser = {
-  id: string | number;
-  name?: string | null;
+  id: number;
   email: string;
-  tipoUsuario?: string;
+  nombre?: string | null;
 };
 
 type AuthContextType = {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  refreshSession: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -19,35 +21,73 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const u = await fetchSession();
+  const refreshSession = useCallback(async () => {
+    try {
+      const u = await fetchSession(); // GET /auth/me (devuelve usuario si cookie válida)
       if (u) {
-        setUser({ id: u.id, email: u.email, name: u.nombre ?? null, tipoUsuario: u.tipoUsuario ?? null });
+        // Normalizamos nombres de campos al shape del backend
+        setUser({ id: u.id, email: u.email, nombre: u.nombre ?? null });
       } else {
         setUser(null);
       }
-    })();
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'beloop_authenticated' && e.newValue !== 'true') {
-        setUser(null);
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    } catch {
+      setUser(null);
+    }
   }, []);
 
+  useEffect(() => {
+    // Cargar sesión al montar (si ya hay cookie válida)
+    refreshSession();
+
+    // Opcional: cuando la pestaña recupera foco, refrescar sesión
+    const onFocus = () => refreshSession();
+    window.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [refreshSession]);
+
+  const login = async (email: string, password: string) => {
+    try {
+      // POST /auth/login — el backend setea cookie httpOnly y devuelve { ok: true, usuario }
+      const res = await api.post('/auth/login', { email, password });
+      if (res.data?.ok && res.data?.usuario) {
+        setUser({
+          id: res.data.usuario.id,
+          email: res.data.usuario.email ?? email.toLowerCase(),
+          nombre: res.data.usuario.nombre ?? null,
+        });
+        return true;
+      }
+      // fallback: si el backend no devuelve usuario, intentamos /auth/me
+      await refreshSession();
+      return !!user;
+    } catch {
+      setUser(null);
+      return false;
+    }
+  };
+
   const logout = async () => {
-    await apiLogout();
-    localStorage.removeItem('beloop_authenticated');
-    localStorage.removeItem('beloop_user_name');
-    localStorage.removeItem('beloop_user_role');
-    setUser(null);
+    try {
+      await apiLogout(); // POST /auth/logout (borra cookie en backend)
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        refreshSession,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
