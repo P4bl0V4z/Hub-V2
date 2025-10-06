@@ -23,9 +23,7 @@ RUN pnpm install --frozen-lockfile
 COPY backend/ ./
 
 # Genera Prisma Client (usa /app/backend/prisma/schema.prisma)
-RUN pnpm prisma db push --force-reset
 RUN pnpm prisma generate
-
 # Compila a /app/backend/dist
 RUN pnpm tsc -p tsconfig.build.json
 
