@@ -1,112 +1,50 @@
-# Etapa de build
+# ---------- Etapa de build ----------
 FROM node:20-slim AS builder
 
-WORKDIR /app
+WORKDIR /app/backend
 
-ARG GOOGLE_CLIENT_ID
-ARG GOOGLE_CLIENT_SECRET
-ARG DATABASE_URL
-ARG REDIS_HOST
-ARG JWT_SECRET
-ARG MAIL_HOST
-ARG MAIL_USER
-ARG MAIL_PASS
-ARG MAIL_PORT
-ARG MAIL_SECURE
-ARG MAIL_TLS_REJECT_UNAUTHORIZED
-ARG MAIL_FROM_NAME
-ARG FRONTEND_URL
-ARG PORT
-ARG MAIL_FROM
-
-ENV GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-ENV GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+# Prisma Generate necesita schema y un DATABASE_URL válido (puede ser dummy)
+ARG DATABASE_URL=postgresql://user:pass@localhost:5432/db?schema=public
 ENV DATABASE_URL=$DATABASE_URL
-ENV REDIS_HOST=$REDIS_HOST
-ENV JWT_SECRET=$JWT_SECRET
-ENV MAIL_HOST=$MAIL_HOST
-ENV MAIL_USER=$MAIL_USER
-ENV MAIL_PASS=$MAIL_PASS
-ENV MAIL_PORT=$MAIL_PORT
-ENV MAIL_SECURE=$MAIL_SECURE
-ENV MAIL_TLS_REJECT_UNAUTHORIZED=$MAIL_TLS_REJECT_UNAUTHORIZED
-ENV MAIL_FROM_NAME=$MAIL_FROM_NAME
-ENV FRONTEND_URL=$FRONTEND_URL
-ENV PORT=$PORT
-ENV MAIL_FROM=$MAIL_FROM
 
+# Herramientas necesarias para dependencias nativas y openssl
 RUN apt-get update && apt-get install -y \
-    python3 \
-    build-essential \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-RUN apt-get install -y openssl
+  python3 build-essential libssl-dev openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+# PNPM
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
+# Instala deps del backend
 COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
+# Copia el código del backend (incluye prisma/)
 COPY backend/ ./
 
-# Generar Prisma Client
+# Genera Prisma Client (usa /app/backend/prisma/schema.prisma)
 RUN pnpm prisma generate
 
-# Compilar proyecto (corregido)
-RUN pnpm tsc -p tsconfig.build.json && echo "✅ tsc ok"
-RUN pnpm nest build && echo "✅ nest ok"
+# Compila a /app/backend/dist
+RUN pnpm tsc -p tsconfig.build.json
 
-# Etapa final
+# ---------- Etapa final ----------
 FROM node:20-slim
 
-WORKDIR /app
-RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /app/backend
+
+# libs nativas
+RUN apt-get update && apt-get install -y openssl libssl-dev \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
-ARG GOOGLE_CLIENT_ID
-ARG GOOGLE_CLIENT_SECRET
-ARG DATABASE_URL
-ARG REDIS_HOST
-ARG JWT_SECRET
-ARG MAIL_HOST
-ARG MAIL_USER
-ARG MAIL_PASS
-ARG MAIL_PORT
-ARG MAIL_SECURE
-ARG MAIL_TLS_REJECT_UNAUTHORIZED
-ARG MAIL_FROM_NAME
-ARG FRONTEND_URL
-ARG PORT
-ARG MAIL_FROM
+# Copia artefactos del builder (dist, node_modules, prisma, package.json, etc.)
+COPY --from=builder /app/backend/ ./
 
-ENV GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-ENV GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-ENV DATABASE_URL=$DATABASE_URL
-ENV REDIS_HOST=$REDIS_HOST
-ENV JWT_SECRET=$JWT_SECRET
-ENV MAIL_HOST=$MAIL_HOST
-ENV MAIL_USER=$MAIL_USER
-ENV MAIL_PASS=$MAIL_PASS
-ENV MAIL_PORT=$MAIL_PORT
-ENV MAIL_SECURE=$MAIL_SECURE
-ENV MAIL_TLS_REJECT_UNAUTHORIZED=$MAIL_TLS_REJECT_UNAUTHORIZED
-ENV MAIL_FROM_NAME=$MAIL_FROM_NAME
-ENV FRONTEND_URL=$FRONTEND_URL
-ENV PORT=$PORT
-ENV MAIL_FROM=$MAIL_FROM
-
-#COPY --from=builder /app/package.json ./
-#COPY --from=builder /app/pnpm-lock.yaml ./
-#COPY --from=builder /app/node_modules ./node_modules
-#COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-#COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-##COPY --from=builder /app/dist ./dist
-#COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/ ./
-COPY  backend/ ./
-RUN npm install -g npm@11.5.2
+# Puerto interno que expone tu app Nest
 EXPOSE 3001
 
-#COPY backend/start.sh .
+# Script de arranque
 RUN chmod +x start.sh
-
 CMD ["./start.sh"]

@@ -1,6 +1,9 @@
-#!/bin/bash
-echo "Contenedor beloop-backend listo. Esperando comandos..."
+#!/bin/sh
+set -e
 
-# Esto mantiene el contenedor vivo sin hacer nada
-#tail -f /dev/null
-pnpm start:prod
+echo "Running prisma migrate deploy..."
+# Aplica migraciones ya existentes a la DB real de producción
+pnpm prisma migrate deploy
+
+echo "Starting app..."
+node dist/main.js
