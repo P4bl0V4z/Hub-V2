@@ -132,35 +132,4 @@ model TestAttempt {
   @@unique([userId, testId, attemptNumber])
 }
 
-// agregados 30 de Set
-enum NivelAcceso {
-  SIN_DEFINIR
-  SIN_ACCESO
-  VER
-  EDITAR
-}
-
-model ObjetoSistema {
-  id          Int             @id @default(autoincrement())
-  key         String          @unique
-  nombre      String
-  descripcion String?
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt      @map("updated_at")
-  rolesAcceso RolAcceso[]
-}
-
-model RolAcceso {
-  id              Int            @id @default(autoincrement())
-  rolId           Int            @map("rol_id")
-  objetoSistemaId Int            @map("objeto_sistema_id")
-  nivel           NivelAcceso    @default(SIN_DEFINIR)
-
-  rol    Rol           @relation(fields: [rolId], references: [id], onDelete: Cascade)
-  objeto ObjetoSistema @relation(fields: [objetoSistemaId], references: [id], onDelete: Cascade)
-
-  @@unique([rolId, objetoSistemaId])
-  @@index([objetoSistemaId])
-  @@index([nivel])
-}
 
