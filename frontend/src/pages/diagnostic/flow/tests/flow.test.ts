@@ -42,11 +42,13 @@ describe("Flow graph sanity", () => {
 
 // --- 2) computeOutcome: casos clave ---
 describe("computeOutcome", () => {
-  it("Micro empresa: no afecta REP, VU inicial, plan seleccionado", () => {
+  it("Micro empresa: no afecta REP, VU inicial, SG inicial, plan seleccionado", () => {
     const answers = {
       Q_SIZE: "micro",
       // rama VU (micro deriva a VU)
-      Q_VU_REG: "no", // empresa inicial
+      Q_VU_REG: "no", // empresa inicial VU
+      // Sistema de Gestión
+      Q_SG_ADHERIDO: "no", // → Empresa Inicial en SG
       Q_ENCARGADO: "si",
       Q_PLAN: "pro",
     } as Record<string, string>;
@@ -55,28 +57,31 @@ describe("computeOutcome", () => {
 
     expect(out.afecta_rep).toBe("No");
     expect(out.vu_stage).toBe("Empresa Inicial");
+    // sg_madurez ahora decide el nivel de madurez de la empresa
+    expect(out.sg_madurez).toBe("Empresa Inicial");
     expect(out.encargado_flag).toBe("si");
     expect(out.selected_plan).toBe("pro");
-    // sin trazabilidad respondida:
-    expect(out.traz_madurez).toBeNull();
     expect(out.traz_complex_score).toBeNull();
     expect(out.traz_complex_level).toBeNull();
   });
 
-  it("Mediana + comercializa + >300kg: afecta REP; VU avanzado; trazabilidad intermedia", () => {
+  it("Mediana + comercializa + >300kg: afecta REP; VU avanzado; SG avanzado; trazabilidad intermedia", () => {
     const answers = {
       // antecedentes → afecta REP = Sí
       Q_SIZE: "mediana",
       Q_COMERCIALIZA: "si",
       Q_KG300: "si",
-      // trazabilidad
-      Q_TRAZ_ESTAND: "bueno", // → 'Empresa Avanzada' informativo
+      // trazabilidad - complejidad estructural
+      Q_TRAZ_ESTAND: "bueno", // disponible para uso futuro
       Q_TRAZ_FAMILIAS: "intermedia",
       Q_TRAZ_LINEAS: "intermedia",
       Q_TRAZ_CATEGORIAS: "intermedia",
       Q_TRAZ_SKUS: "intermedia",
       Q_TRAZ_NIVELES: "intermedia",
       Q_TRAZ_COMPONENTES: "intermedia",
+      // Sistema de Gestión → DETERMINA EL NIVEL DE MADUREZ DE LA EMPRESA
+      Q_SG_ADHERIDO: "si",
+      Q_SG_DECLARADO: "si", // Adherido + declarado = 'Empresa Avanzada'
       // VU → avanzado
       Q_VU_REG: "si",
       Q_VU_APERTURA: "si",
@@ -90,8 +95,8 @@ describe("computeOutcome", () => {
     expect(out.afecta_rep).toBe("Sí");
     expect(out.vu_stage).toBe("Empresa Avanzada");
 
-    // traz_madurez mapeado desde Q_TRAZ_ESTAND
-    expect(out.traz_madurez).toBe("Empresa Avanzada");
+    // sg_madurez es la FUENTE PRINCIPAL del nivel de madurez (desde Sistema de Gestión)
+    expect(out.sg_madurez).toBe("Empresa Avanzada");
 
     // Si todas las de complejidad son "intermedia", el score = 1.5
     // (por factores y pesos) → cae bajo basicaMax (1.75) ⇒ nivel "basica".
@@ -117,5 +122,116 @@ describe("computeOutcome", () => {
     const out = computeOutcome(answers);
     expect(out.traz_complex_score).toBe(1.75);
     expect(out.traz_complex_level).toBe("intermedia");
+  });
+
+  // --- 3) Nivel de Consultoría ---
+  describe("Nivel de Consultoría", () => {
+    it("Óptimo + Sí encargado = Sin Consultoría", () => {
+      const answers = {
+        Q_TRAZ_ESTAND: "optimo",
+        Q_TRAZ_ENCARGADO: "si",
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.consultoria_nivel).toBe("sin_consultoria");
+    });
+
+    it("Bueno + No encargado = Consultoría Parcial", () => {
+      const answers = {
+        Q_TRAZ_ESTAND: "bueno",
+        Q_TRAZ_ENCARGADO: "no",
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.consultoria_nivel).toBe("consultoria_completa");
+    });
+
+    it("Crítico + Sí encargado = Consultoría Completa", () => {
+      const answers = {
+        Q_TRAZ_ESTAND: "critico",
+        Q_TRAZ_ENCARGADO: "si",
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.consultoria_nivel).toBe("consultoria_completa");
+    });
+  });
+
+  // --- 4) Recomendación de Planes (múltiples planes posibles) ---
+  describe("Recomendación de Planes", () => {
+    it("Solo VU-RETC (no afecta REP) → Solo Plan RETC", () => {
+      const answers = {
+        Q_SIZE: "micro",
+        Q_VU_REG: "si", // tiene VU-RETC
+        Q_VU_APERTURA: "no",
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.afecta_rep).toBe("No");
+      expect(out.vu_stage).toBe("Empresa en Transición");
+      expect(out.planes_recomendados).toEqual(["retc"]);
+    });
+
+    it("Afecta REP (sin VU-RETC) - Avanzada + Sin Consultoría = Solo Plan Simple", () => {
+      const answers = {
+        Q_SIZE: "mediana",
+        Q_COMERCIALIZA: "si",
+        Q_KG300: "si",
+        Q_SG_ADHERIDO: "si",
+        Q_SG_DECLARADO: "si", // Empresa Avanzada
+        Q_TRAZ_ESTAND: "optimo",
+        Q_TRAZ_ENCARGADO: "si", // Sin Consultoría
+        // No tiene VU-RETC
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.afecta_rep).toBe("Sí");
+      expect(out.sg_madurez).toBe("Empresa Avanzada");
+      expect(out.consultoria_nivel).toBe("sin_consultoria");
+      expect(out.vu_stage).toBeNull();
+      expect(out.planes_recomendados).toEqual(["simple"]);
+    });
+
+    it("Afecta REP + VU-RETC → Plan RETC + Plan REP (PRO)", () => {
+      const answers = {
+        Q_SIZE: "grande",
+        Q_COMERCIALIZA: "si",
+        Q_KG300: "si",
+        Q_SG_ADHERIDO: "si",
+        Q_SG_DECLARADO: "no", // Empresa en Transición
+        Q_TRAZ_ESTAND: "bueno",
+        Q_TRAZ_ENCARGADO: "si", // Consultoría Parcial
+        Q_VU_REG: "si",
+        Q_VU_APERTURA: "si",
+        Q_VU_DECL: "si", // VU Avanzado
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.afecta_rep).toBe("Sí");
+      expect(out.sg_madurez).toBe("Empresa en Transición");
+      expect(out.consultoria_nivel).toBe("consultoria_parcial");
+      expect(out.vu_stage).toBe("Empresa Avanzada");
+      expect(out.planes_recomendados).toEqual(["retc", "pro"]);
+    });
+
+    it("Afecta REP + VU-RETC - Inicial + Consultoría Completa = RETC + Enterprise", () => {
+      const answers = {
+        Q_SIZE: "pequena",
+        Q_COMERCIALIZA: "si",
+        Q_KG300: "si",
+        Q_SG_ADHERIDO: "no", // Empresa Inicial
+        Q_TRAZ_ESTAND: "critico",
+        Q_TRAZ_ENCARGADO: "no", // Consultoría Completa
+        Q_VU_REG: "si",
+        Q_VU_APERTURA: "no", // VU en Transición
+      } as Record<string, string>;
+
+      const out = computeOutcome(answers);
+      expect(out.afecta_rep).toBe("Sí");
+      expect(out.sg_madurez).toBe("Empresa Inicial");
+      expect(out.consultoria_nivel).toBe("consultoria_completa");
+      expect(out.vu_stage).toBe("Empresa en Transición");
+      expect(out.planes_recomendados).toEqual(["retc", "enterprise"]);
+    });
   });
 });

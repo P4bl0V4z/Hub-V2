@@ -147,7 +147,7 @@ export default function MedicionCard({ initialValue, onSubmit, goTo, onSaveAnswe
 
   // ---------- Submit global ----------
   const totalsGlobal = useMemo(() => computeGlobalTotals(productos), [productos]);
-  const canSubmit = productos.length > 0 && editingIndex === null;
+  const canSubmit = productos.length === 1 && editingIndex === null; // Solo 1 producto permitido
 
   const submitAll = () => {
     if (!canSubmit) return;
@@ -172,13 +172,28 @@ export default function MedicionCard({ initialValue, onSubmit, goTo, onSaveAnswe
   /* ===================== UI ===================== */
   return (
     <div className="space-y-8">
+      {/* Instrucciones destacadas */}
+      <div className="rounded-2xl border-2 border-green-200 bg-green-50 p-5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="text-3xl">✓</div>
+          <div>
+            <h3 className="font-bold text-lg text-green-900 mb-2">
+              Ingresa tu producto con más ventas
+            </h3>
+            <p className="text-sm text-green-800">
+              Para esta medición, solo necesitas ingresar <strong>1 producto: el que tenga más ventas anuales</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Lista de productos guardados */}
       {productos.map((p, idx) => {
         const isOpen = openProducts.has(idx);
         return (
-          <section key={idx} className="rounded-2xl border p-5 shadow-sm bg-white/70">
-            <div className="mb-2 font-semibold uppercase">
-              Producto {String(idx + 1).padStart(2, "0")}
+          <section key={idx} className="rounded-2xl border-2 border-green-200 bg-green-50 p-5 shadow-sm">
+            <div className="mb-2 font-semibold uppercase text-green-900">
+              Tu Producto con Más Ventas
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -276,9 +291,9 @@ export default function MedicionCard({ initialValue, onSubmit, goTo, onSaveAnswe
       })}
 
       {/* Formulario de producto */}
-      {editingIndex === null && (
+      {editingIndex === null && productos.length === 0 && (
         <section className="rounded-2xl border p-5 shadow-sm">
-          <div className="font-semibold mb-4">Ingresa tus productos</div>
+          <div className="font-semibold mb-4">Ingresa tu producto con más ventas</div>
 
           <label className="block text-sm mb-1">Producto</label>
           <input
@@ -363,12 +378,12 @@ export default function MedicionCard({ initialValue, onSubmit, goTo, onSaveAnswe
             </fieldset>
 
             <label className="text-sm">
-              <span className="block mb-1">Ventas anuales del producto (un)</span>
+              <span className="block mb-1">Ventas anuales del producto (unidades)</span>
               <input
                 inputMode="numeric"
                 pattern="[0-9]*"
                 className="w-full border rounded-lg p-2"
-                placeholder="300"
+                placeholder="Ej. 10000"
                 value={draftProd.ventas ?? ""}
                 onChange={(e) => {
                   const n = parseDec(e.target.value);
@@ -495,38 +510,49 @@ export default function MedicionCard({ initialValue, onSubmit, goTo, onSaveAnswe
       )}
 
       {/* Totales globales + submit */}
-      <section className="rounded-2xl border p-5 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-lg border p-3">
-            <div className="opacity-70">Productos</div>
-            <div className="font-semibold">{productos.length}</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="opacity-70">Total Kg</div>
-            <div className="font-semibold">{totalsGlobal.totalKg.toFixed(3)} kg</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="opacity-70">Kg por material</div>
-            <div className="text-xs">
-              {Object.entries(totalsGlobal.totalKgPorMaterial).map(([k, v]) => (
-                <div key={k}>
-                  {MATERIALS[k as MaterialKey].label}: <b>{(v ?? 0).toFixed(3)} kg</b>
+      {productos.length > 0 && (
+        <section className="rounded-2xl border p-5 shadow-sm">
+          <div className="font-semibold mb-4">Resumen de Medición</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="rounded-lg border p-4 bg-gray-50">
+              <div className="text-gray-600 mb-1">Total Kg anuales</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {totalsGlobal.totalKg.toFixed(3)} kg
+              </div>
+              {totalsGlobal.totalKg >= 300 ? (
+                <div className="mt-2 text-xs text-green-700 font-semibold">
+                  ✓ Supera los 300 kg → Afecta REP
                 </div>
-              ))}
+              ) : (
+                <div className="mt-2 text-xs text-orange-700 font-semibold">
+                  ⚠ No supera los 300 kg → No afecta REP
+                </div>
+              )}
+            </div>
+            <div className="rounded-lg border p-4 bg-gray-50">
+              <div className="text-gray-600 mb-2">Kg por material</div>
+              <div className="text-xs space-y-1">
+                {Object.entries(totalsGlobal.totalKgPorMaterial).map(([k, v]) => (
+                  <div key={k} className="flex justify-between">
+                    <span>{MATERIALS[k as MaterialKey].label}:</span>
+                    <span className="font-semibold">{(v ?? 0).toFixed(3)} kg</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 flex justify-end">
-          <button
-            className="rounded-2xl px-4 py-2 bg-sky-600 text-white disabled:opacity-50"
-            disabled={!canSubmit}
-            onClick={submitAll}
-          >
-            Guardar / Continuar
-          </button>
-        </div>
-      </section>
+          <div className="mt-4 flex justify-end">
+            <button
+              className="rounded-2xl px-6 py-3 bg-sky-600 text-white disabled:opacity-50 font-semibold hover:bg-sky-700 transition-colors"
+              disabled={!canSubmit}
+              onClick={submitAll}
+            >
+              Continuar con el diagnóstico
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -59,7 +59,7 @@ type State = {
     vu_stage?: string | null;
     encargado_flag?: "si" | "no" | null;
     selected_plan?: "simple" | "pro" | "enterprise" | null;
-    traz_madurez?: "Empresa Avanzada" | "Empresa en Transición" | "Empresa Inicial" | null;
+    sg_madurez?: "Empresa Avanzada" | "Empresa en Transición" | "Empresa Inicial" | null;
     traz_complex_score?: number | null;
     traz_complex_level?: "basica" | "intermedia" | "avanzada" | "compleja" | null;
     decided_at: string;

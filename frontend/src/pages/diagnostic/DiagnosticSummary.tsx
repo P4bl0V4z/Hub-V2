@@ -52,25 +52,22 @@ function mapVuStage(stage: string | null): "inicial" | "transicion" | "avanzada"
   return null;
 }
 
-// Determinar estado REP basado en afectación y estandarización
+// Determinar estado REP basado en afectación y madurez de Sistema de Gestión
 function determineRepStatus(
   afectaRep: "Sí" | "No" | "Indeterminado" | string,
-  _trazMadurez: "Empresa Avanzada" | "Empresa en Transición" | "Empresa Inicial" | null,
-  trazEstand: "optimo" | "bueno" | "regular" | "limitado" | "critico" | null
+  sgMadurez: "Empresa Avanzada" | "Empresa en Transición" | "Empresa Inicial" | null
 ): "no_afecto" | "inicial" | "transicion" | "avanzada" {
   // 1) Si NO está afecto → tarjeta 4
   if (afectaRep === "No") return "no_afecto";
 
-  // 2) Si está afecto → mapeo por estandarización
+  // 2) Si está afecto → mapeo por madurez de Sistema de Gestión
   if (afectaRep === "Sí") {
-    switch (trazEstand) {
-      case "optimo":
+    switch (sgMadurez) {
+      case "Empresa Avanzada":
         return "avanzada"; // tarjeta 3 (verde)
-      case "bueno":
-      case "regular":
+      case "Empresa en Transición":
         return "transicion"; // tarjeta 2 (amarillo)
-      case "limitado":
-      case "critico":
+      case "Empresa Inicial":
         return "inicial"; // tarjeta 1 (rojo)
       default:
         return "inicial"; // prudente si falta dato
@@ -100,6 +97,7 @@ export default function DiagnosticSummary() {
   const navigate = useNavigate();
   const [showNewTestDialog, setShowNewTestDialog] = useState(false);
   const [activeView, setActiveView] = useState<"resultados" | "soluciones">("resultados");
+  const [showAllPlans, setShowAllPlans] = useState(false);
 
   // 1) Cargar estado y respuestas
   const state = useMemo(() => {
@@ -215,17 +213,10 @@ export default function DiagnosticSummary() {
   const vuProgress = useMemo(() => calculateVuProgress(outcome.vu_stage), [outcome.vu_stage]);
   const vuStage = useMemo(() => mapVuStage(outcome.vu_stage), [outcome.vu_stage]);
 
-  // Normalizamos Q_TRAZ_ESTAND a union válido o null
-  const trazEstandNorm = useMemo(() => {
-    const raw = (answers.Q_TRAZ_ESTAND ?? "").toLowerCase();
-    return (["optimo", "bueno", "regular", "limitado", "critico"].includes(raw)
-      ? (raw as "optimo" | "bueno" | "regular" | "limitado" | "critico")
-      : null);
-  }, [answers.Q_TRAZ_ESTAND]);
-
+  // Estado REP basado en afectación y madurez de Sistema de Gestión
   const repStatus = useMemo(
-    () => determineRepStatus(outcome.afecta_rep, outcome.traz_madurez, trazEstandNorm),
-    [outcome.afecta_rep, outcome.traz_madurez, trazEstandNorm]
+    () => determineRepStatus(outcome.afecta_rep, outcome.sg_madurez),
+    [outcome.afecta_rep, outcome.sg_madurez]
   );
 
   // REP progress (por ahora 0 — se completa en otro módulo)
@@ -253,24 +244,36 @@ export default function DiagnosticSummary() {
     // Nota: si necesitas uppercasing de algún label, hazlo aquí según qid
   };
 
-  // Determinar planes recomendados
-  const recommendedPlans = useMemo(() => {
-    const plans: string[] = [];
+  // Determinar planes recomendados desde outcome
+  const planesRecomendados = useMemo(() => {
+    const planes = outcome.planes_recomendados;
+    if (!planes || planes.length === 0) return [];
 
-    // Siempre recomendar Plan RETC si está sujeto a VU-RETC
-    if (vuStage) {
-      plans.push("RETC");
-    }
+    // Mapear a formato uppercase para mostrar
+    const planMap: Record<string, string> = {
+      retc: "RETC",
+      simple: "Simple",
+      pro: "Pro",
+      enterprise: "Enterprise",
+    };
 
-    // Planes REP según estado
-    if (repStatus === "inicial" || repStatus === "transicion") {
-      plans.push("Simple", "Pro", "Enterprise");
-    } else if (repStatus === "avanzada") {
-      plans.push("Simple", "Pro");
-    }
+    return planes.map(plan => planMap[plan]).filter(Boolean) as string[];
+  }, [outcome.planes_recomendados]);
 
-    return plans;
-  }, [repStatus, vuStage]);
+  // Lista de todos los planes disponibles
+  const allPlans = ["RETC", "Simple", "Pro", "Enterprise"];
+
+  // Otros planes (excluyendo los recomendados)
+  const otherPlans = useMemo(() => {
+    if (planesRecomendados.length === 0) return allPlans;
+    return allPlans.filter(plan => !planesRecomendados.includes(plan));
+  }, [planesRecomendados]);
+
+  // Planes a mostrar
+  const plansToShow = useMemo(() => {
+    if (showAllPlans) return allPlans;
+    return planesRecomendados;
+  }, [showAllPlans, planesRecomendados]);
 
   // -------------------------------
   // Render
@@ -330,28 +333,30 @@ export default function DiagnosticSummary() {
           {/* Vista de Soluciones */}
           {activeView === "soluciones" && (
             <div className="space-y-6">
-              {/* Tarjeta de Plan Recomendado */}
-              <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="w-8 h-8 text-white" />
+              {/* Tarjeta de encabezado */}
+              {planesRecomendados.length > 0 && !showAllPlans && (
+                <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <CheckCircle className="w-8 h-8 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-lg font-bold text-gray-900 mb-2">
+                          {planesRecomendados.length === 1 ? "TU PLAN RECOMENDADO" : "TUS PLANES RECOMENDADOS"}
+                        </h2>
+                        <p className="text-sm text-gray-600">
+                          Según las respuestas de tu test hemos evaluado el estado de tu empresa y determinado {planesRecomendados.length === 1 ? "el plan" : "los planes"} que mejor se {planesRecomendados.length === 1 ? "ajusta" : "ajustan"} a sus necesidades actuales.
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900 mb-2">
-                        TU PLAN RECOMENDADO
-                      </h2>
-                      <p className="text-sm text-gray-600">
-                        Según Las Respuestas De Tu Test Hemos Evaluado El Estado De Tu Empresa Y Determinado El Plan Que Mejor Se Ajusta A Sus Necesidades Actuales.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Lista de Planes */}
               <div className="space-y-4">
-                {recommendedPlans.map((plan) => (
+                {plansToShow.map((plan) => (
                   <Card key={plan} className="border-2 hover:border-gray-300 transition-colors">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -418,16 +423,24 @@ export default function DiagnosticSummary() {
 
               {/* Botones de Acción */}
               <div className="flex gap-4 justify-center pt-4">
-                <Button
-                  variant="outline"
-                  className="px-6"
-                  onClick={() => {
-                    // TODO: Implementar lógica para ver otros planes
-                    alert("Ver otros planes disponibles");
-                  }}
-                >
-                  REVISAR OTROS PLANES
-                </Button>
+                {!showAllPlans && otherPlans.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="px-6"
+                    onClick={() => setShowAllPlans(true)}
+                  >
+                    REVISAR OTROS PLANES
+                  </Button>
+                )}
+                {showAllPlans && (
+                  <Button
+                    variant="outline"
+                    className="px-6"
+                    onClick={() => setShowAllPlans(false)}
+                  >
+                    VER SOLO PLAN RECOMENDADO
+                  </Button>
+                )}
                 <Button
                   className="px-6 bg-black text-white hover:bg-gray-800"
                   onClick={() => {
