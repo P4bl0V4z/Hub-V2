@@ -420,13 +420,16 @@ export default function DiagnosticRunner() {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
+            body: JSON.stringify({
+              score: finalOutcome.traz_complex_score,
+            }),
           });
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
-          console.log('✓ Intento completado en backend');
+          console.log('✓ Intento completado en backend con score:', finalOutcome.traz_complex_score);
         } catch (error) {
           console.error('✗ Error al completar intento:', error);
         }
