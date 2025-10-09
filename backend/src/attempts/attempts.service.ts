@@ -7,11 +7,6 @@ import { TestProgressSchema, type TestProgress } from '../types/test-progress';
 export class AttemptsService {
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * Crea un intento nuevo o reanuda el activo (completed = false)
-   * Ahora soporta crear test automáticamente si se pasa testName
-   * Si todos los intentos están completados, crea uno nuevo con attemptNumber incrementado
-   */
   async startAttempt(params: {
     userId: number;
     testId?: number;
@@ -21,7 +16,6 @@ export class AttemptsService {
     const { userId, testName, label } = params;
     let testId = params.testId;
 
-    // Si no hay testId, buscar o crear test por nombre
     if (!testId && testName) {
       let test = await this.prisma.test.findFirst({
         where: { nombre: testName },
@@ -41,7 +35,6 @@ export class AttemptsService {
       throw new BadRequestException('Debe proporcionar testId o testName');
     }
 
-    // Reanudar si hay intento activo (no completado)
     const existing = await this.prisma.testAttempt.findFirst({
       where: { userId, testId, completed: false },
     });
@@ -50,7 +43,6 @@ export class AttemptsService {
       return existing;
     }
 
-    // Calcular el siguiente attemptNumber
     const lastAttempt = await this.prisma.testAttempt.findFirst({
       where: { userId, testId },
       orderBy: { attemptNumber: 'desc' },
@@ -59,7 +51,6 @@ export class AttemptsService {
 
     const nextAttemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
 
-    // Crear nuevo intento con progress inicial
     const initialProgress: TestProgress = {
       version: 'v1',
       answeredCount: 0,
@@ -76,13 +67,9 @@ export class AttemptsService {
       },
     });
 
-    console.log(`✓ Nuevo intento creado: #${newAttempt.id} (Intento #${nextAttemptNumber})`);
+    console.log(`Nuevo intento creado: #${newAttempt.id} (Intento #${nextAttemptNumber})`);
     return newAttempt;
   }
-
-  /**
-   * Guarda el progreso (autosave). Valida que el intento sea del usuario y no esté completado.
-   */
   async saveProgress(params: { attemptId: number; userId: number; progress: unknown }) {
     const { attemptId, userId, progress } = params;
 
@@ -97,7 +84,7 @@ export class AttemptsService {
 
     const parsed: TestProgress = TestProgressSchema.parse(progress);
 
-    console.log('💾 Guardando progreso:', {
+    console.log('Guardando progreso:', {
       attemptId,
       answeredCount: parsed.answeredCount,
       totalAnswers: parsed.answers.length,
@@ -110,13 +97,10 @@ export class AttemptsService {
       },
     });
 
-    console.log('✓ Progreso guardado exitosamente');
+    console.log('Progreso guardado exitosamente');
     return updated;
   }
 
-  /**
-   * Obtener un intento (para reanudar en FE).
-   */
   async getAttempt(attemptId: number, userId: number) {
     const attempt = await this.prisma.testAttempt.findUnique({
       where: { id: attemptId },
@@ -140,9 +124,6 @@ export class AttemptsService {
     return attempt;
   }
 
-  /**
-   * Marcar intento como completado y guardar score (si aplica).
-   */
   async completeAttempt(params: { attemptId: number; userId: number; score?: number }) {
     const { attemptId, userId, score } = params;
 
@@ -167,10 +148,6 @@ export class AttemptsService {
     });
   }
 
-  /**
-   * Obtener todos los intentos de un usuario (para listar en UI o Postman)
-   * Ordenados por más reciente primero
-   */
   async getUserAttempts(userId: number) {
     const attempts = await this.prisma.testAttempt.findMany({
       where: { userId },
@@ -188,13 +165,11 @@ export class AttemptsService {
       ],
     });
 
-    console.log(`✓ Encontrados ${attempts.length} intentos para el usuario ${userId}`);
+    console.log(`Encontrados ${attempts.length} intentos para el usuario ${userId}`);
     return attempts;
   }
 
-  /**
-   * Obtener historial de intentos de un test específico para un usuario
-   */
+  
   async getTestHistory(userId: number, testId: number) {
     return this.prisma.testAttempt.findMany({
       where: { userId, testId },
@@ -202,10 +177,7 @@ export class AttemptsService {
     });
   }
 
-  /**
-   * Forzar la creación de un nuevo intento, completando el anterior si existe
-   * Útil para el botón "Nuevo Test" desde la pantalla de resultados
-   */
+  
   async forceNewAttempt(params: {
     userId: number;
     testId?: number;
@@ -215,7 +187,6 @@ export class AttemptsService {
     const { userId, testName, label } = params;
     let testId = params.testId;
 
-    // Si no hay testId, buscar o crear test por nombre
     if (!testId && testName) {
       let test = await this.prisma.test.findFirst({
         where: { nombre: testName },
@@ -225,7 +196,7 @@ export class AttemptsService {
         test = await this.prisma.test.create({
           data: { nombre: testName },
         });
-        console.log('✓ Test creado:', test);
+        console.log('Test creado:', test);
       }
 
       testId = test.id;
@@ -235,7 +206,6 @@ export class AttemptsService {
       throw new BadRequestException('Debe proporcionar testId o testName');
     }
 
-    // Completar cualquier intento activo (no completado)
     const activeAttempt = await this.prisma.testAttempt.findFirst({
       where: { userId, testId, completed: false },
     });
@@ -248,10 +218,9 @@ export class AttemptsService {
           completedAt: new Date(),
         },
       });
-      console.log(`✓ Intento anterior #${activeAttempt.id} completado automáticamente`);
+      console.log(`Intento anterior #${activeAttempt.id} completado automáticamente`);
     }
 
-    // Calcular el siguiente attemptNumber
     const lastAttempt = await this.prisma.testAttempt.findFirst({
       where: { userId, testId },
       orderBy: { attemptNumber: 'desc' },
@@ -260,7 +229,6 @@ export class AttemptsService {
 
     const nextAttemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
 
-    // Crear nuevo intento con progress inicial
     const initialProgress: TestProgress = {
       version: 'v1',
       answeredCount: 0,
@@ -277,7 +245,7 @@ export class AttemptsService {
       },
     });
 
-    console.log(`✓ Nuevo intento forzado creado: #${newAttempt.id} (Intento #${nextAttemptNumber})`);
+    console.log(`Nuevo intento forzado creado: #${newAttempt.id} (Intento #${nextAttemptNumber})`);
     return newAttempt;
   }
 }

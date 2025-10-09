@@ -60,7 +60,6 @@ async function main() {
     console.log('El usuario admin ya existe.');
   }
 
-  // 4) Vinculaciones (idempotentes)
   let usuarioEmpresa = await prisma.usuarioEmpresa.findFirst({
     where: { usuarioId: usuario.id, empresaId: empresa.id },
   });

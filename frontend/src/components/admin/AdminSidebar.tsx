@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -8,6 +7,7 @@ import BeLoopIcon from "@/components/BeLoopIcons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import HelpTooltip from "@/components/HelpTooltip";
+import { useAccess } from '@/hooks/useAccess';
 
 const AdminSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -16,42 +16,41 @@ const AdminSidebar = () => {
   const location = useLocation();
   const { toast } = useToast();
 
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-  };
+  const { isSuperAdmin, can } = useAccess({ enabled: true });
+
+  // 👇 claves de objetos en BD: 'roles', 'usuarios', 'objetos'
+  const canRoles   = isSuperAdmin || can('roles', 'VER');
+  const canUsers   = isSuperAdmin || can('usuarios', 'VER');
+  const canObjects = isSuperAdmin || can('objetos', 'VER');
+
+  const toggleSidebar = () => setCollapsed(!collapsed);
 
   const handleLogout = () => {
     setLogoutDialog(false);
     localStorage.setItem("beloop_authenticated", "false");
     localStorage.removeItem("beloop_user_role");
-    
-    toast({
-      title: "Sesión cerrada",
-      description: "Has cerrado sesión correctamente.",
-    });
-    
-    setTimeout(() => {
-      // Navegamos directamente a login sin parámetros de consulta
-      navigate('/login');
-      
-      // Forzamos una recarga para asegurarnos que el estado global se actualice completamente
-      window.location.reload();
-    }, 100);
+    toast({ title: "Sesión cerrada", description: "Has cerrado sesión correctamente." });
+    setTimeout(() => { navigate('/login'); window.location.reload(); }, 100);
   };
 
-  const isActive = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
-  };
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   const menuItems = [
-    { icon: "layoutDashboard", label: 'Dashboard', path: '/admin' },
-    { icon: "users", label: 'Clientes', path: '/admin/clients' },
-    { icon: "fileCheck", label: 'Cumplimiento', path: '/admin/compliance' },
-    { icon: "user", label: 'Usuarios', path: '/admin/users' },
-    { icon: "settings", label: 'Configuración', path: '/admin/settings' },
-    { icon: "barChart", label: 'Reportes', path: '/admin/reports' },
-    { icon: "ticket", label: 'Soporte', path: '/admin/support' },
-    { icon: "activity", label: 'Actividad', path: '/admin/activity' },
+    { icon: "layoutDashboard", label: 'Dashboard', path: '/admin', show: true },
+   // { icon: "users", label: 'Clientes', path: '/admin/clients', show: true },
+   // { icon: "fileCheck", label: 'Cumplimiento', path: '/admin/compliance', show: true },
+
+    // 🔐 ABMs visibles según permisos o superadmin
+    { icon: "user",   label: 'Usuarios', path: '/admin/users', show: canUsers },
+    { icon: "shield", label: 'Roles', path: '/admin/roles', show: canRoles },
+    { icon: "package",   label: 'Objetos', path: '/admin/permissions', show: canObjects },
+    
+
+    { icon: "settings", label: 'Configuración', path: '/admin/settings', show: true },
+    { icon: "barChart", label: 'Reportes', path: '/admin/reports', show: true },
+    { icon: "ticket", label: 'Soporte', path: '/admin/support', show: true },
+    { icon: "activity", label: 'Actividad', path: '/admin/activity', show: true },
   ];
 
   return (
@@ -84,7 +83,7 @@ const AdminSidebar = () => {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-6">
         <ul className="space-y-1 px-2">
-          {menuItems.map((item) => (
+          {menuItems.filter(i => i.show).map((item) => (
             <li key={item.path}>
               <Link
                 to={item.path}
@@ -116,10 +115,7 @@ const AdminSidebar = () => {
         onClick={toggleSidebar}
         className="absolute -right-3 top-20 bg-background border border-border rounded-full w-6 h-6 flex items-center justify-center p-0"
       >
-        <BeLoopIcon 
-          name={collapsed ? "chevronRight" : "chevronLeft"} 
-          size={16} 
-        />
+        <BeLoopIcon name={collapsed ? "chevronRight" : "chevronLeft"} size={16} />
       </Button>
 
       {/* User info */}
