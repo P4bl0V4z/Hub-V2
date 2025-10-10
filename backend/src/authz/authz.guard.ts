@@ -14,9 +14,16 @@ export class AuthzGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest();
     const userId = req.user?.id as number | undefined;
-    const empresaId = req.empresaId as number | undefined;
+    let empresaId = req.empresaId as number | undefined;
 
-    if (!userId || !empresaId) throw new ForbiddenException('Contexto incompleto');
+    if (!userId) throw new ForbiddenException('Contexto incompleto');
+
+    if (!empresaId) {
+      empresaId = await this.authz.resolveEmpresaIdFor(userId);
+      if (empresaId) req.empresaId = empresaId;
+    }
+
+    if (!empresaId) throw new ForbiddenException('Contexto incompleto');
 
     const ok = await this.authz.isAuthorized(userId, empresaId, objectKey, min);
     if (!ok) throw new ForbiddenException(`Acceso insuficiente a ${objectKey}`);

@@ -19,7 +19,16 @@ export class AuthorizationService {
     return effective.reduce((max, cur) => (ORDER[cur] > ORDER[max] ? cur : max), 'SIN_ACCESO' as NivelAcceso);
   }
 
-  /** ✅ NUEVO: determina si el usuario es “superadmin” en la empresa actual */
+  async resolveEmpresaIdFor(userId: number): Promise<number | undefined> {
+    const empresas = await this.prisma.usuarioEmpresa.findMany({
+      where: { usuarioId: userId },
+      select: { empresaId: true, empresa: { select: { esEmpresaMaestra: true } } },
+      orderBy: { empresaId: 'asc' },
+    });
+    const master = empresas.find(e => e.empresa.esEmpresaMaestra);
+    return master?.empresaId ?? empresas[0]?.empresaId;
+  }
+
   async isSuperAdmin(userId: number, empresaId: number): Promise<boolean> {
     const empresa = await this.prisma.empresa.findUnique({
       where: { id: empresaId },
