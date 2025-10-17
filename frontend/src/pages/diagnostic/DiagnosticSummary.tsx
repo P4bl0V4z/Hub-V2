@@ -20,7 +20,7 @@ import { VuRetcCard } from "./components/VuRetcCards";
 import { RepCard } from "./components/RepCards";
 import { RotateCcw, CheckCircle } from "lucide-react";
 
-const STATE_KEY = "dt_state_v3";
+const API_BASE_URL = "http://localhost:3001/api";
 
 // -------------------------------
 // Utilidades
@@ -31,6 +31,11 @@ function safeParse<T>(s?: string): T | undefined {
   } catch {
     return undefined;
   }
+}
+
+// Función para obtener el token de autenticación
+function getAuthToken(): string | null {
+  return localStorage.getItem('beloop_token');
 }
 
 type TrazComplexPayload = { score?: number; answered?: number };
@@ -98,53 +103,27 @@ export default function DiagnosticSummary() {
   const [showNewTestDialog, setShowNewTestDialog] = useState(false);
   const [activeView, setActiveView] = useState<"resultados" | "soluciones">("resultados");
   const [showAllPlans, setShowAllPlans] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [attemptId, setAttemptId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 1) Cargar estado y respuestas
-  const state = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
-    } catch {
-      return {};
-    }
-  }, []);
-  const answers: Record<string, string> = state?.answers ?? {};
-
-  // Verificar si hay respuestas completadas
-  const hasCompletedTest = useMemo(() => {
-    return Object.keys(answers).length > 0;
-  }, [answers]);
-
-  // Redirigir si no hay test completado
+  // Cargar respuestas desde el backend
   useEffect(() => {
-    if (!hasCompletedTest) {
-      navigate('/diagnostic');
-    }
-  }, [hasCompletedTest, navigate]);
-
-  // Marcar el intento como completado en el backend al cargar los resultados
-  useEffect(() => {
-    const completeAttemptInBackend = async () => {
-      // Solo completar si hay un test completado en el estado
-      if (!hasCompletedTest || !state?.finished) {
-        return;
-      }
-
-      // Obtener el attemptId del localStorage o del state
-      const attemptId = state?.attemptId;
-      if (!attemptId) {
-        console.warn('⚠️ No se encontró attemptId en el estado');
-        return;
-      }
-
+    const loadLatestCompletedAttempt = async () => {
       try {
-        const token = localStorage.getItem('beloop_token');
+        setIsLoading(true);
+        const token = getAuthToken();
         if (!token) {
-          console.error('✗ No hay token de autenticación');
+          console.error('❌ No hay token de autenticación');
+          navigate('/diagnostic');
           return;
         }
 
-        const response = await fetch(`http://localhost:3001/api/attempts/${attemptId}/complete`, {
-          method: 'POST',
+        console.log('� Buscando último intento completado...');
+
+        // Obtener todos los intentos del usuario
+        const response = await fetch(`${API_BASE_URL}/attempts`, {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -155,28 +134,61 @@ export default function DiagnosticSummary() {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        console.log('✓ Intento marcado como completado en backend');
+        const attempts = await response.json();
+        console.log(`📋 Encontrados ${attempts.length} intentos`);
+
+        // Buscar el último intento completado
+        const completedAttempts = attempts.filter((a: any) => a.completed === true);
+        
+        if (completedAttempts.length === 0) {
+          console.warn('⚠️ No hay intentos completados disponibles');
+          navigate('/diagnostic');
+          return;
+        }
+
+        // Tomar el más reciente (por ID o fecha)
+        const latestCompleted = completedAttempts.sort((a: any, b: any) => b.id - a.id)[0];
+        console.log('✅ Último intento completado encontrado:', { id: latestCompleted.id, score: latestCompleted.score });
+
+        if (!latestCompleted.progress?.answers?.length) {
+          console.warn('⚠️ El intento no tiene respuestas guardadas');
+          navigate('/diagnostic');
+          return;
+        }
+
+        // Reconstruir mapa de respuestas
+        const answersMap: Record<string, string> = {};
+        latestCompleted.progress.answers.forEach((a: any) => {
+          answersMap[a.qid] = a.value;
+        });
+
+        console.log(`✅ Cargadas ${Object.keys(answersMap).length} respuestas`);
+        console.log('📊 Mapa de respuestas:', answersMap);
+        setAnswers(answersMap);
+        setAttemptId(latestCompleted.id);
+        setIsLoading(false);
       } catch (error) {
-        console.error('✗ Error al completar intento en backend:', error);
+        console.error('❌ Error al cargar resultados:', error);
+        navigate('/diagnostic');
       }
     };
 
-    completeAttemptInBackend();
-  }, [hasCompletedTest, state]);
+    loadLatestCompletedAttempt();
+  }, [navigate]);
 
   // Función para iniciar un nuevo test
   const handleNewTest = async () => {
     try {
-      const token = localStorage.getItem('beloop_token');
+      const token = getAuthToken();
       if (!token) {
-        console.error('✗ No hay token de autenticación');
+        console.error('❌ No hay token de autenticación');
         return;
       }
 
-      console.log('🔄 Iniciando nuevo test...');
+      console.log('🔄 Creando nuevo intento de test...');
 
-      // Llamar al endpoint que fuerza la creación de un nuevo intento
-      const response = await fetch('http://localhost:3001/api/tests/auto/attempts/new', {
+      // Crear un nuevo intento
+      const response = await fetch(`${API_BASE_URL}/tests/auto/attempts/new`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,35 +201,44 @@ export default function DiagnosticSummary() {
       }
 
       const newAttempt = await response.json();
-      console.log('✓ Nuevo intento creado en backend:', newAttempt);
+      console.log('✅ Nuevo intento creado:', { id: newAttempt.id });
 
-      // Limpiar el localStorage completamente para resetear el estado de React
-      localStorage.removeItem(STATE_KEY);
-      console.log('✓ LocalStorage limpiado');
-
-      // Usar navigate en lugar de window.location.href para evitar recarga completa
-      // y permitir que React maneje el cambio de ruta correctamente
+      // Redirigir al diagnóstico
       navigate('/diagnostic', { replace: true });
     } catch (error) {
-      console.error('✗ Error al crear nuevo intento:', error);
-      // Si falla, al menos limpiar localStorage y redirigir
-      localStorage.removeItem(STATE_KEY);
+      console.error('❌ Error al crear nuevo intento:', error);
+      // Si falla, al menos redirigir
       navigate('/diagnostic', { replace: true });
     }
   };
 
   // 2) Outcome oficial
-  const outcome = useMemo(() => computeOutcome(answers), [answers]);
+  const outcome = useMemo(() => {
+    const result = computeOutcome(answers);
+    console.log('🎯 Outcome calculado:', result);
+    console.log('📦 Respuestas utilizadas:', Object.keys(answers));
+    return result;
+  }, [answers]);
 
   // 3) Progreso y estados derivados
-  const vuProgress = useMemo(() => calculateVuProgress(outcome.vu_stage), [outcome.vu_stage]);
-  const vuStage = useMemo(() => mapVuStage(outcome.vu_stage), [outcome.vu_stage]);
+  const vuProgress = useMemo(() => {
+    const progress = calculateVuProgress(outcome.vu_stage);
+    console.log('📈 VU Progress:', { stage: outcome.vu_stage, progress });
+    return progress;
+  }, [outcome.vu_stage]);
+  
+  const vuStage = useMemo(() => {
+    const stage = mapVuStage(outcome.vu_stage);
+    console.log('🏢 VU Stage mapeado:', { original: outcome.vu_stage, mapped: stage });
+    return stage;
+  }, [outcome.vu_stage]);
 
   // Estado REP basado en afectación y madurez de Sistema de Gestión
-  const repStatus = useMemo(
-    () => determineRepStatus(outcome.afecta_rep, outcome.sg_madurez),
-    [outcome.afecta_rep, outcome.sg_madurez]
-  );
+  const repStatus = useMemo(() => {
+    const status = determineRepStatus(outcome.afecta_rep, outcome.sg_madurez);
+    console.log('🎯 REP Status:', { afecta_rep: outcome.afecta_rep, sg_madurez: outcome.sg_madurez, status });
+    return status;
+  }, [outcome.afecta_rep, outcome.sg_madurez]);
 
   // REP progress (por ahora 0 — se completa en otro módulo)
   const repProgress = 0;
@@ -246,8 +267,15 @@ export default function DiagnosticSummary() {
 
   // Determinar planes recomendados desde outcome
   const planesRecomendados = useMemo(() => {
+    console.log('🔍 Outcome completo:', outcome);
     const planes = outcome.planes_recomendados;
-    if (!planes || planes.length === 0) return [];
+    console.log('📋 Planes del outcome:', planes);
+    console.log('📋 Tipo de planes:', typeof planes, Array.isArray(planes));
+    
+    if (!planes || !Array.isArray(planes) || planes.length === 0) {
+      console.warn('⚠️ No hay planes recomendados en el outcome');
+      return [];
+    }
 
     // Mapear a formato uppercase para mostrar
     const planMap: Record<string, string> = {
@@ -257,8 +285,10 @@ export default function DiagnosticSummary() {
       enterprise: "Enterprise",
     };
 
-    return planes.map(plan => planMap[plan]).filter(Boolean) as string[];
-  }, [outcome.planes_recomendados]);
+    const mapped = planes.map(plan => planMap[plan]).filter(Boolean) as string[];
+    console.log('✨ Planes recomendados mapeados:', mapped);
+    return mapped;
+  }, [outcome]);
 
   // Lista de todos los planes disponibles
   const allPlans = ["RETC", "Simple", "Pro", "Enterprise"];
@@ -278,6 +308,21 @@ export default function DiagnosticSummary() {
   // -------------------------------
   // Render
   // -------------------------------
+  if (isLoading) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="mx-auto max-w-4xl space-y-6">
+            <div className="flex items-center justify-center h-64">
+              <p className="text-lg text-gray-600">Cargando resultados...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
@@ -323,10 +368,10 @@ export default function DiagnosticSummary() {
           {activeView === "resultados" && (
             <>
               {/* 1) REP — tarjeta con nueva lógica */}
-              <RepCard status={repStatus} completedSteps={repProgress} />
+              <RepCard status={repStatus} />
 
               {/* 2) Ventanilla Única – RETC */}
-              {vuStage && <VuRetcCard stage={vuStage} completedSteps={vuProgress} />}
+              {vuStage && <VuRetcCard stage={vuStage} />}
             </>
           )}
 

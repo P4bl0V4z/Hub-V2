@@ -25,9 +25,9 @@ import {
 import MedicionCard from "./flow/sections/MedicionCard";
 import { toProgressFromMap, autosaveProgress } from "./ORDER";
 
-const STATE_KEY = "dt_state_v3";
 const SUMMARY_PATH = "/diagnostic/summary";
 const KEY_TRAZ_COMPLEX = "Q_TRAZ_COMPLEX";
+const API_BASE_URL = "http://localhost:3001/api";
 
 const COMPLEXITY_QIDS: QuestionId[] = [
   "Q_TRAZ_FAMILIAS",
@@ -67,12 +67,14 @@ type State = {
   }>;
 };
 
-function loadState(): State {
-  try {
-    const raw = localStorage.getItem(STATE_KEY);
-    if (raw) return JSON.parse(raw) as State;
-  } catch {}
-  return {
+// Función para obtener el token de autenticación
+function getAuthToken(): string | null {
+  return localStorage.getItem('beloop_token');
+}
+
+// Función para cargar o crear un intento en el backend
+async function loadOrCreateAttempt(): Promise<State> {
+  const defaultState: State = {
     currentId: FIRST_QUESTION,
     answers: {},
     sectionDone: {
@@ -86,10 +88,113 @@ function loadState(): State {
     finished: false,
     outcomes: [],
   };
+
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      console.error('❌ No hay token de autenticación');
+      return defaultState;
+    }
+
+    console.log('🔄 Cargando o creando intento...');
+
+    // Crear o reanudar intento
+    const response = await fetch(`${API_BASE_URL}/tests/auto/attempts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const attempt = await response.json();
+    console.log('✅ Intento cargado/creado:', { id: attempt.id, completed: attempt.completed });
+
+    // Si el intento ya está completado, crear uno nuevo
+    if (attempt.completed) {
+      console.log('⚠️ El intento ya está completado, creando uno nuevo...');
+      const newResponse = await fetch(`${API_BASE_URL}/tests/auto/attempts/new`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!newResponse.ok) {
+        throw new Error(`HTTP ${newResponse.status}: ${newResponse.statusText}`);
+      }
+
+      const newAttempt = await newResponse.json();
+      console.log('✅ Nuevo intento creado:', { id: newAttempt.id });
+      return { ...defaultState, attemptId: newAttempt.id };
+    }
+
+    // Si no hay progreso, retornar estado por defecto con el attemptId
+    if (!attempt.progress?.answers?.length) {
+      console.log('📝 Intento sin progreso, empezando desde cero');
+      return { ...defaultState, attemptId: attempt.id };
+    }
+
+    // Reconstruir estado desde el progreso guardado
+    console.log('📋 Reconstruyendo estado desde progreso guardado...');
+    const answersMap: Record<string, string> = {};
+    attempt.progress.answers.forEach((a: any) => {
+      answersMap[a.qid] = a.value;
+    });
+
+    const orderedQids = Object.values(QUESTIONS)
+      .filter(q => q.id !== 'END')
+      .map(q => q.id as QuestionId);
+
+    const history = orderedQids.filter(qid => answersMap[qid]);
+
+    const reconstructedState = {
+      ...defaultState,
+      attemptId: attempt.id,
+      answers: answersMap,
+      currentId: attempt.progress.currentQid || FIRST_QUESTION,
+      history: history,
+      finished: false, // Los intentos no completados no están finished
+    };
+
+    console.log('✅ Estado reconstruido:', { 
+      attemptId: reconstructedState.attemptId,
+      currentQuestion: reconstructedState.currentId,
+      answeredQuestions: Object.keys(answersMap).length 
+    });
+
+    return reconstructedState;
+  } catch (error) {
+    console.error('❌ Error al cargar/crear intento:', error);
+    return defaultState;
+  }
 }
 
-function saveState(s: State) {
-  localStorage.setItem(STATE_KEY, JSON.stringify(s));
+// Función para guardar el progreso en el backend
+async function saveProgress(attemptId: number, state: State): Promise<void> {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      console.error('❌ No hay token para guardar progreso');
+      return;
+    }
+
+    const orderedQids = Object.values(QUESTIONS)
+      .filter(q => q.id !== 'END')
+      .map(q => q.id as QuestionId);
+    
+    const progress = toProgressFromMap(state.answers, orderedQids, state.currentId);
+
+    await autosaveProgress(attemptId, progress);
+    // console.log('💾 Progreso guardado'); // Comentado para reducir spam
+  } catch (error) {
+    console.error('❌ Error al guardar progreso:', error);
+  }
 }
 
 const publicLabel = (label: string) => label.replace(/\s*\(.*?\)\s*$/, "");
@@ -113,117 +218,116 @@ const safeParse = <T,>(s?: string): T | undefined => {
 
 export default function DiagnosticRunner() {
   const navigate = useNavigate();
-  const [state, setState] = useState<State>(() => loadState());
+  const [state, setState] = useState<State>({
+    currentId: FIRST_QUESTION,
+    answers: {},
+    sectionDone: {
+      antecedentes: false,
+      trazabilidad: false,
+      sistema_gestion: false,
+      vu_retc: false,
+      medicion: false,
+    },
+    history: [],
+    finished: false,
+    outcomes: [],
+  });
   const [showInfoCard, setShowInfoCard] = useState(false);
   const [attemptId, setAttemptId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Resetear estado si el localStorage está vacío (nuevo test)
+  // Cargar estado inicial desde el backend
   useEffect(() => {
-    const raw = localStorage.getItem(STATE_KEY);
-    if (!raw) {
-      setState(loadState());
-    }
+    const initState = async () => {
+      setIsLoading(true);
+      const loadedState = await loadOrCreateAttempt();
+      setState(loadedState);
+      setAttemptId(loadedState.attemptId || null);
+      setIsLoading(false);
+      console.log('✅ Inicialización completa');
+    };
+
+    initState();
   }, []);
-
-  // Inicializar intento al montar el componente
+  
+  // Guardar en backend cuando cambie el estado (con debounce)
   useEffect(() => {
-    const initAttempt = async () => {
+    if (!attemptId || isLoading || state.finished) return;
+    
+    // Debounce: esperar 500ms después del último cambio antes de guardar
+    const timeoutId = setTimeout(async () => {
+      setIsSaving(true);
+      await saveProgress(attemptId, state);
+      setIsSaving(false);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [attemptId, state, isLoading]);
+
+  useEffect(() => {
+    setShowInfoCard(false);
+  }, [state.currentId]);
+
+  // Completar el intento en el backend cuando se termina el test
+  useEffect(() => {
+    const completeAttempt = async () => {
+      if (!state.finished || !attemptId || isCompleting) return;
+
+      setIsCompleting(true);
+      console.log('🏁 Completando test...');
+
       try {
-        const token = localStorage.getItem('beloop_token');
+        const token = getAuthToken();
         if (!token) {
-          console.error('✗ No hay token de autenticación');
+          console.error('❌ No hay token de autenticación');
+          setIsCompleting(false);
           return;
         }
 
-        const response = await fetch('http://localhost:3001/api/tests/auto/attempts', {
+        // Obtener el score del último outcome
+        const lastOutcome = state.outcomes[state.outcomes.length - 1];
+        const score = lastOutcome?.traz_complex_score || 0;
+
+        console.log('� Enviando score:', score);
+
+        const response = await fetch(`${API_BASE_URL}/attempts/${attemptId}/complete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
+          body: JSON.stringify({ score }),
         });
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const data = await response.json();
-        console.log('✓ Intento iniciado/reanudado:', data);
-        setAttemptId(data.id);
-
-        // Guardar attemptId en el state para que esté disponible en DiagnosticSummary
-        setState(prev => ({ ...prev, attemptId: data.id }));
-
-        // Solo rehidratar si hay localStorage con estado
-        // Si el localStorage está vacío, significa que es un nuevo test
-        const hasLocalStorage = localStorage.getItem(STATE_KEY);
-
-        if (hasLocalStorage && data.progress?.answers?.length > 0) {
-          const answersMap: Record<string, string> = {};
-          data.progress.answers.forEach((a: any) => {
-            answersMap[a.qid] = a.value;
-          });
-
-          // Reconstruir historial desde las respuestas guardadas
-          const orderedQids = Object.values(QUESTIONS)
-            .filter(q => q.id !== 'END')
-            .map(q => q.id as QuestionId);
-
-          const history = orderedQids.filter(qid => answersMap[qid]);
-
-          setState(prev => ({
-            ...prev,
-            answers: answersMap,
-            currentId: data.progress.currentQid || FIRST_QUESTION,
-            history: history,
-          }));
-
-          console.log('✓ Progreso rehidratado desde backend:', {
-            respuestas: Object.keys(answersMap).length,
-            preguntaActual: data.progress.currentQid,
-          });
-        } else {
-          console.log('✓ Nuevo test iniciado (no hay progreso previo a rehidratar)');
-        }
+        const result = await response.json();
+        console.log('✅ Test completado exitosamente:', result);
+        
+        // Esperar un momento para asegurar que el backend procese todo
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
       } catch (error) {
-        console.error('✗ Error al iniciar intento:', error);
+        console.error('❌ Error al completar intento:', error);
+      } finally {
+        setIsCompleting(false);
       }
     };
 
-    initAttempt();
-  }, []);
-  
-  // Guardar en localStorage
-  useEffect(() => {
-    saveState(state);
-  }, [state]);
+    completeAttempt();
+  }, [state.finished, attemptId, isCompleting, state.outcomes]);
 
-  // Autosave al backend
+  // Redirigir automáticamente al resumen cuando el test está completado
   useEffect(() => {
-    if (!attemptId) return;
-    
-    const orderedQids = Object.values(QUESTIONS)
-      .filter(q => q.id !== 'END')
-      .map(q => q.id as QuestionId);
-    
-    const progress = toProgressFromMap(state.answers, orderedQids, state.currentId);
-    
-    autosaveProgress(attemptId, progress)
-      .then(() => console.log('✓ Autosave exitoso'))
-      .catch(err => console.error('✗ Error autosave:', err));
-      
-  }, [attemptId, state.answers, state.currentId]);
-
-  useEffect(() => {
-    setShowInfoCard(false);
-  }, [state.currentId]);
-
-  // Redirigir automáticamente si llegamos a END (ya está finished)
-  useEffect(() => {
-    if (state.currentId === "END" && state.finished) {
+    if (state.currentId === "END" && state.finished && !isCompleting) {
+      console.log('🎉 Navegando al resumen de resultados...');
       navigate(SUMMARY_PATH);
     }
-  }, [state.currentId, state.finished, navigate]);
+  }, [state.currentId, state.finished, isCompleting, navigate]);
 
   const current = useMemo(() => QUESTIONS[state.currentId], [state.currentId]);
   const questionInfo = useMemo(() => getQuestionInfo(state.currentId), [state.currentId]);
@@ -328,9 +432,55 @@ export default function DiagnosticRunner() {
     return { ...state.sectionDone, [section]: allAnswered };
   };
 
-  const resetAll = () => {
-    localStorage.removeItem(STATE_KEY);
-    setState(loadState());
+  const resetAll = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('✗ No hay token de autenticación');
+        return;
+      }
+
+      console.log('🔄 Creando nuevo intento...');
+
+      // Crear un nuevo intento en el backend
+      const response = await fetch(`${API_BASE_URL}/tests/auto/attempts/new`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const newAttempt = await response.json();
+      console.log('✓ Nuevo intento creado:', newAttempt);
+
+      // Resetear el estado local
+      const newState: State = {
+        currentId: FIRST_QUESTION,
+        answers: {},
+        sectionDone: {
+          antecedentes: false,
+          trazabilidad: false,
+          sistema_gestion: false,
+          vu_retc: false,
+          medicion: false,
+        },
+        history: [],
+        finished: false,
+        outcomes: [],
+        attemptId: newAttempt.id,
+      };
+
+      setState(newState);
+      setAttemptId(newAttempt.id);
+      console.log('✓ Estado reseteado');
+    } catch (error) {
+      console.error('✗ Error al resetear:', error);
+    }
   };
 
   const onBack = () => {
@@ -400,42 +550,7 @@ export default function DiagnosticRunner() {
         sectionDone,
       }));
 
-      // Completar intento en el backend (la navegación la maneja el useEffect)
-      const completeBackendAttempt = async () => {
-        if (!attemptId) {
-          console.warn('⚠ No hay attemptId, no se puede completar en backend');
-          return;
-        }
-
-        try {
-          const token = localStorage.getItem('beloop_token');
-          if (!token) {
-            console.error('✗ No hay token de autenticación');
-            return;
-          }
-
-          const response = await fetch(`http://localhost:3001/api/attempts/${attemptId}/complete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              score: finalOutcome.traz_complex_score,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          console.log('✓ Intento completado en backend con score:', finalOutcome.traz_complex_score);
-        } catch (error) {
-          console.error('✗ Error al completar intento:', error);
-        }
-      };
-
-      completeBackendAttempt();
+      // La completación en el backend se maneja en el useEffect
       return;
     }
 
@@ -523,10 +638,36 @@ export default function DiagnosticRunner() {
     );
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="mx-auto max-w-2xl">
+            <div className="flex items-center justify-center h-64">
+              <p className="text-lg text-gray-600">Cargando diagnóstico...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
  return (
   <div className="flex h-screen overflow-hidden bg-background">
     <Sidebar />
     <main className="flex-1 overflow-y-auto">
+      {/* Overlay de completación */}
+      {isCompleting && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 shadow-xl flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-lg font-semibold">Guardando resultados...</p>
+            <p className="text-sm text-gray-600">Por favor espera un momento</p>
+          </div>
+        </div>
+      )}
+      
       <div className={`mx-auto p-6 ${questionInfo && showInfoCard ? 'max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6' : 'max-w-2xl flex flex-col items-center'}`}>
         <div className={`w-full ${questionInfo && showInfoCard ? '' : 'max-w-xl'}`}>
           <div className="mb-3 flex items-center justify-between">
@@ -534,6 +675,13 @@ export default function DiagnosticRunner() {
               {progressToPlan.applicable && (
                 <div className="min-w-[56px] rounded-md border px-2 py-1 text-center text-xs font-semibold">
                   {progressToPlan.percent}%
+                </div>
+              )}
+              {/* Indicador de guardado */}
+              {isSaving && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
+                  <span>Guardando...</span>
                 </div>
               )}
             </div>

@@ -6,40 +6,81 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
-const STATE_KEY = "dt_state_v3";
+const API_BASE_URL = "http://localhost:3001/api";
 
 const DiagnosticCard = () => {
   const navigate = useNavigate();
-  const [state, setState] = useState<any>(null);
+  const [testStatus, setTestStatus] = useState<'loading' | 'not_started' | 'in_progress' | 'completed'>('loading');
+  const [attemptInfo, setAttemptInfo] = useState<{ id: number; progress: number } | null>(null);
 
-  // Cargar estado del localStorage y actualizar periódicamente
+  // Cargar estado del test desde el backend
   useEffect(() => {
-    const loadState = () => {
+    const loadTestStatus = async () => {
       try {
-        const raw = localStorage.getItem(STATE_KEY);
-        if (raw) {
-          setState(JSON.parse(raw));
-        } else {
-          setState(null);
+        const token = localStorage.getItem('beloop_token');
+        if (!token) {
+          setTestStatus('not_started');
+          return;
         }
+
+        // Obtener todos los intentos del usuario
+        const response = await fetch(`${API_BASE_URL}/attempts`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          setTestStatus('not_started');
+          return;
+        }
+
+        const attempts = await response.json();
+
+        if (!attempts || attempts.length === 0) {
+          setTestStatus('not_started');
+          return;
+        }
+
+        // Buscar intentos completados
+        const completedAttempts = attempts.filter((a: any) => a.completed === true);
+        const incompleteAttempts = attempts.filter((a: any) => a.completed === false);
+
+        // Si hay intentos incompletos, mostrar el más reciente
+        if (incompleteAttempts.length > 0) {
+          const latest = incompleteAttempts.sort((a: any, b: any) => b.id - a.id)[0];
+          const answeredCount = latest.progress?.answers?.length || 0;
+          const totalQuestions = 20; // Aproximado, ajusta según tu flujo
+          const progress = Math.round((answeredCount / totalQuestions) * 100);
+          
+          setTestStatus('in_progress');
+          setAttemptInfo({ id: latest.id, progress });
+          return;
+        }
+
+        // Si solo hay completados, mostrar como completado
+        if (completedAttempts.length > 0) {
+          const latest = completedAttempts.sort((a: any, b: any) => b.id - a.id)[0];
+          setTestStatus('completed');
+          setAttemptInfo({ id: latest.id, progress: 100 });
+          return;
+        }
+
+        setTestStatus('not_started');
       } catch (error) {
-        console.error('Error loading state:', error);
-        setState(null);
+        console.error('Error loading test status:', error);
+        setTestStatus('not_started');
       }
     };
 
-    loadState();
-    // Actualizar cada segundo para reflejar cambios en tiempo real
-    const interval = setInterval(loadState, 1000);
+    loadTestStatus();
+    
+    // Actualizar cada 5 segundos para reflejar cambios
+    const interval = setInterval(loadTestStatus, 5000);
     return () => clearInterval(interval);
   }, []);
-
-  // Determinar el estado del test
-  const testStatus = useMemo(() => {
-    if (!state) return 'not_started'; // No hay estado -> No iniciado
-    if (state.finished === true) return 'completed'; // finished = true -> Completado
-    return 'in_progress'; // Existe pero no completado -> En progreso
-  }, [state]);
 
   const handleAction = () => {
     if (testStatus === 'completed') {
@@ -62,14 +103,23 @@ const DiagnosticCard = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Estado del test</p>
 
+                {testStatus === 'loading' && (
+                  <p className="font-medium text-gray-400">Cargando...</p>
+                )}
+
                 {testStatus === 'not_started' && (
                   <p className="font-medium">No iniciado</p>
                 )}
 
                 {testStatus === 'in_progress' && (
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                    En progreso
-                  </Badge>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                      En progreso
+                    </Badge>
+                    {attemptInfo && attemptInfo.progress > 0 && (
+                      <p className="text-xs text-gray-600">{attemptInfo.progress}% completado</p>
+                    )}
+                  </div>
                 )}
 
                 {testStatus === 'completed' && (
@@ -84,7 +134,14 @@ const DiagnosticCard = () => {
                 size="sm"
                 className="gap-1"
                 onClick={handleAction}
+                disabled={testStatus === 'loading'}
               >
+                {testStatus === 'loading' && (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  </>
+                )}
+
                 {testStatus === 'not_started' && (
                   <>
                     <BeLoopIcon name="play" className="h-4 w-4" />
